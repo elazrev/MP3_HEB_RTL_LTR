@@ -1,0 +1,17 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background Circle -->
+    <circle cx="64" cy="64" r="60" fill="#4A90E2"/>
+    
+    <!-- Music Note -->
+    <path d="M45 35 L45 85 Q45 95 35 95 Q25 95 25 85 Q25 75 35 75 L45 75" 
+          stroke="white" fill="none" stroke-width="8" stroke-linecap="round"/>
+    
+    <!-- Hebrew Letters -->
+    <text x="55" y="65" font-size="40" fill="white" font-family="Arial">
+        עב
+    </text>
+    
+    <!-- Arrows -->
+    <path d="M85 45 L105 45 L95 35 M95 55 L75 55 L85 65" 
+          stroke="white" fill="none" stroke-width="4" stroke-linecap="round"/>
+</svg>
