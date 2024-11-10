@@ -21,7 +21,7 @@ class MainView(ft.UserControl):
             # Header
             ft.Row([
                 ft.Text(
-                    "Hebrew MP3 Tag Fixer",
+                    "TRAKTOR Hebrew MP3 Tag Fixer",
                     style=AppStyles.HEADER
                 )
             ], alignment=ft.MainAxisAlignment.CENTER),
@@ -29,7 +29,7 @@ class MainView(ft.UserControl):
             # Credit
             ft.Row([
                 ft.Text(
-                    "by elaz.rev",
+                    "© by elaz.rev",
                     size=14,
                     italic=True,
                     color=AppTheme.SECONDARY

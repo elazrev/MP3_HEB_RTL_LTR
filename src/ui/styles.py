@@ -1,6 +1,6 @@
+import flet as ft
 from dataclasses import dataclass
 from typing import Dict, Any
-import flet as ft
 
 
 @dataclass
@@ -27,7 +27,7 @@ class AppTheme:
         return {
             "color_scheme_seed": cls.PRIMARY,
             "use_material3": True,
-            "visual_density": ft.ThemeVisualDensity.COMFORTABLE,
+            "visual_density": ft.VisualDensity.ADAPTIVE_PLATFORM_DENSITY,
         }
 
 
@@ -37,9 +37,16 @@ class AppStyles:
 
     # Text styles
     HEADER = ft.TextStyle(
-        size=30,
+        size=40,
         weight=ft.FontWeight.BOLD,
-        color=AppTheme.PRIMARY
+        color=ft.colors.GREY_300,
+        foreground=ft.Paint(
+            color=ft.colors.BLUE_700,
+            stroke_width=2,
+            stroke_join=ft.StrokeJoin.ROUND,
+            style=ft.PaintingStyle.STROKE,
+        ),
+
     )
 
     SUBHEADER = ft.TextStyle(
@@ -54,40 +61,37 @@ class AppStyles:
     )
 
     # Button styles
-    PRIMARY_BUTTON = {
-        "bgcolor": AppTheme.PRIMARY,
-        "color": AppTheme.TEXT_PRIMARY,
-        "height": 40,
-        "style": ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=8),
+    @staticmethod
+    def get_button_style(primary: bool = True) -> ft.ButtonStyle:
+        return ft.ButtonStyle(
+            color={
+                ft. ControlState.DEFAULT: AppTheme.TEXT_PRIMARY,
+                ft. ControlState.DISABLED: AppTheme.TEXT_SECONDARY,
+            },
+            bgcolor={
+                ft. ControlState.DEFAULT: AppTheme.PRIMARY if primary else AppTheme.SECONDARY,
+                ft. ControlState.DISABLED: AppTheme.BACKGROUND,
+            },
+            padding=50,
+            shape=ft.RoundedRectangleBorder(radius=10),
+            elevation={"pressed": 0, "default": 2},
         )
-    }
-
-    SECONDARY_BUTTON = {
-        "bgcolor": AppTheme.SECONDARY,
-        "color": AppTheme.TEXT_PRIMARY,
-        "height": 40,
-        "style": ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=8),
-        )
-    }
 
     # Container styles
     CARD_STYLE = {
         "bgcolor": AppTheme.CARD_BACKGROUND,
         "border_radius": AppTheme.CARD_BORDER_RADIUS,
-        "padding": 15,
+        "padding": 20,
     }
 
-    # Layout styles
+    # Layout
     CONTENT_PADDING = 20
     SPACING = 10
 
     @staticmethod
-    def get_elevated_button_style(primary: bool = True) -> Dict[str, Any]:
-        """Get consistent button style"""
-        style = AppStyles.PRIMARY_BUTTON if primary else AppStyles.SECONDARY_BUTTON
+    def get_elevated_button_props(primary: bool = True) -> Dict[str, Any]:
+        """Get consistent elevated button properties"""
         return {
-            **style,
+            "style": AppStyles.get_button_style(primary),
             "elevation": 2,
         }

@@ -1,6 +1,7 @@
 import flet as ft
 from ..styles import AppTheme
 
+
 class CustomButton(ft.UserControl):
     def __init__(
         self,
@@ -38,12 +39,12 @@ class CustomButton(ft.UserControl):
 
         return ft.ButtonStyle(
             color={
-                ft.MaterialState.DEFAULT: AppTheme.TEXT_PRIMARY,
-                ft.MaterialState.DISABLED: AppTheme.TEXT_SECONDARY,
+                ft.ControlState.DEFAULT: AppTheme.TEXT_PRIMARY,
+                ft.ControlState.DISABLED: AppTheme.TEXT_SECONDARY,
             },
             bgcolor={
-                ft.MaterialState.DEFAULT: color,
-                ft.MaterialState.DISABLED: AppTheme.BACKGROUND,
+                ft.ControlState.DEFAULT: color,
+                ft.ControlState.DISABLED: AppTheme.BACKGROUND,
             },
             padding=10,
             shape=ft.RoundedRectangleBorder(radius=8),

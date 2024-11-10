@@ -45,12 +45,12 @@ class ActionButtons(ft.UserControl):
     def _get_button_style(primary: bool = True):
         return ft.ButtonStyle(
             color={
-                ft.MaterialState.DEFAULT: AppTheme.TEXT_PRIMARY,
-                ft.MaterialState.DISABLED: AppTheme.TEXT_SECONDARY,
+                ft.ControlState.DEFAULT: AppTheme.TEXT_PRIMARY,
+                ft.ControlState.DISABLED: AppTheme.TEXT_SECONDARY,
             },
             bgcolor={
-                ft.MaterialState.DEFAULT: AppTheme.PRIMARY if primary else AppTheme.SECONDARY,
-                ft.MaterialState.DISABLED: AppTheme.BACKGROUND,
+                ft.ControlState.DEFAULT: AppTheme.PRIMARY if primary else AppTheme.SECONDARY,
+                ft.ControlState.DISABLED: AppTheme.BACKGROUND,
             },
             padding=10,
             shape=ft.RoundedRectangleBorder(radius=8),

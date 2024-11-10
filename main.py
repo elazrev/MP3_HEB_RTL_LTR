@@ -3,15 +3,18 @@ from src.ui.views.main_view import MainView
 from src.ui.styles import AppTheme
 
 
+
 def main(page: ft.Page):
     """Initialize and run the application"""
-
     # Configure page
-    page.title = "Hebrew MP3 Tag Fixer"
-    page.window.width = 1200
-    page.window.height = 800
-    page.theme_mode = ft.ThemeMode.DARK
-    page.padding = 20
+    page.title = "TRAKTOR Hebrew MP3 Tag Fixer"
+    page.window.width = 800
+    page.window.height = 900
+    page.window.opacity = 0.95
+    page.theme_mode = ft.ThemeMode.SYSTEM
+    page.padding = 0.3
+    page.scroll = True
+
 
     # Apply theme
     page.theme = AppTheme.get_theme()

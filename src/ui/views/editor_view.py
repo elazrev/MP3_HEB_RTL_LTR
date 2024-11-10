@@ -48,7 +48,7 @@ class EditorView(ft.UserControl):
             ft.Container(width=10),
             ft.ElevatedButton(
                 text="Undo Last Change",
-                icon=ft.icons.UNDO,
+                icon=ft.icons.UNDO_SHARP,
                 on_click=self._handle_undo,
                 disabled=len(self.fixer.history) == 0,
             ),
@@ -56,21 +56,31 @@ class EditorView(ft.UserControl):
 
     def initialize_pickers(self):
         """Initialize file pickers after the view is mounted"""
-        if not self.page:
-            return
+        if self.page:
+            self.pick_files_dialog = ft.FilePicker(
+                on_result=self._handle_files_picked
+            )
+            self.pick_directory_dialog = ft.FilePicker(
+                on_result=self._handle_directory_picked
+            )
 
-        self.pick_files_dialog = ft.FilePicker(
-            on_result=self._handle_files_picked
-        )
-        self.pick_directory_dialog = ft.FilePicker(
-            on_result=self._handle_directory_picked
-        )
+            self.page.overlay.extend([
+                self.pick_files_dialog,
+                self.pick_directory_dialog
+            ])
+            self.page.update()
+        else:
+            print("Warning: `self.page` is None, unable to initialize pickers.")
 
-        self.page.overlay.extend([
-            self.pick_files_dialog,
-            self.pick_directory_dialog
-        ])
-        self.page.update()
+    # Example of safe update with logging
+    def safe_update(self):
+        if self.page:
+            try:
+                self.page.update()
+            except Exception as e:
+                print(f"Update error: {e}")
+        else:
+            print("Warning: `self.page` is None, unable to update.")
 
     def _handle_select_files(self, _):
         """Handle select files button click"""
