@@ -1,95 +1,114 @@
-from mutagen import File, id3
-import os
-from typing import Dict, Optional, List
-import base64
-from .hebrew_handler import HebrewTextHandler
+import re
+from typing import List, Tuple
 
 
-class MP3File:
-    """Represents an MP3 file with its metadata"""
+class HebrewTextHandler:
+    """Handles Hebrew text detection and RTL to LTR conversion"""
 
-    def __init__(self, path: str):
-        self.path = path
-        self.tags: Dict[str, str] = {}
-        self.original_tags: Dict[str, str] = {}
-        self.album_art: Optional[str] = None
-        self.hebrew_analysis: Dict[str, Dict] = {}
-        self.load_tags()
-        self.analyze_tags()
-
-    def load_tags(self) -> None:
-        """Load MP3 tags and album art from file"""
-        try:
-            audio = File(self.path)
-            if isinstance(audio.tags, id3.ID3):
-                self.original_tags = {
-                    'title': str(audio.tags.get('TIT2', '')),
-                    'artist': str(audio.tags.get('TPE1', '')),
-                    'album': str(audio.tags.get('TALB', '')),
-                    'filename': os.path.basename(self.path)
-                }
-                self.tags = self.original_tags.copy()
-
-                # Load album art if exists
-                for tag in audio.tags.values():
-                    if isinstance(tag, id3.APIC):
-                        self.album_art = base64.b64encode(tag.data).decode()
-                        break
-        except Exception as e:
-            print(f"Error loading tags from {self.path}: {str(e)}")
-            # Set default values if loading fails
-            self.original_tags = {
-                'title': os.path.basename(self.path),
-                'artist': '',
-                'album': '',
-                'filename': os.path.basename(self.path)
-            }
-            self.tags = self.original_tags.copy()
-
-    def analyze_tags(self) -> None:
-        """Analyze tags for Hebrew content"""
-        for tag_name, tag_value in self.original_tags.items():
-            self.hebrew_analysis[tag_name] = HebrewTextHandler.analyze_text(tag_value)
-
-    def has_hebrew(self) -> bool:
-        """Check if any tag contains Hebrew text"""
-        return any(
-            analysis['contains_hebrew']
-            for analysis in self.hebrew_analysis.values()
-        )
-
-    def convert_hebrew_tags(self) -> None:
-        """Convert Hebrew text in tags from RTL to LTR"""
-        for tag_name, analysis in self.hebrew_analysis.items():
-            if analysis['needs_conversion']:
-                self.tags[tag_name] = analysis['converted']
-
-    def has_changes(self) -> bool:
-        """Check if there are any changes in tags"""
-        return any(
-            self.tags.get(key) != self.original_tags.get(key)
-            for key in self.tags.keys()
-        )
-
-    def get_display_path(self) -> str:
-        """Get a user-friendly display path"""
-        return os.path.basename(self.path)
-
-    def get_tag_preview(self, tag_name: str) -> Dict:
+    @staticmethod
+    def is_hebrew(text: str) -> bool:
         """
-        Get preview of original and converted tag value
+        Check if text contains Hebrew characters.
 
         Args:
-            tag_name (str): Name of the tag
+            text (str): Text to check
 
         Returns:
-            Dict: Original and converted values with Hebrew analysis
+            bool: True if text contains Hebrew characters
         """
-        return {
-            'original': self.original_tags.get(tag_name, ''),
-            'converted': self.tags.get(tag_name, ''),
-            'analysis': self.hebrew_analysis.get(tag_name, {})
-        }
+        if not text:
+            return False
+        hebrew_pattern = re.compile(r'[\u0590-\u05FF]')
+        return bool(hebrew_pattern.search(str(text)))
 
-    def __str__(self) -> str:
-        return f"{self.tags.get('artist', '')} - {self.tags.get('title', '')}"
+    @staticmethod
+    def split_text_to_segments(text: str) -> List[Tuple[str, bool]]:
+        """
+        Split text into segments of Hebrew and non-Hebrew text.
+
+        Args:
+            text (str): Input text containing mixed Hebrew and non-Hebrew
+
+        Returns:
+            List[Tuple[str, bool]]: List of (text_segment, is_hebrew) tuples
+        """
+        if not text:
+            return []
+
+        segments = []
+        hebrew_pattern = re.compile(r'[\u0590-\u05FF]+')
+
+        # Find all Hebrew segments with their positions
+        matches = list(hebrew_pattern.finditer(text))
+
+        if not matches:
+            return [(text, False)]
+
+        last_end = 0
+        for match in matches:
+            start, end = match.span()
+
+            # Add non-Hebrew segment before match if exists
+            if start > last_end:
+                segments.append((text[last_end:start], False))
+
+            # Add Hebrew segment
+            segments.append((text[start:end], True))
+            last_end = end
+
+        # Add remaining non-Hebrew segment if exists
+        if last_end < len(text):
+            segments.append((text[last_end:], False))
+
+        return segments
+
+    @staticmethod
+    def reverse_hebrew_words(text: str) -> str:
+        """
+        Reverse Hebrew text while preserving word structure and non-Hebrew text.
+
+        Args:
+            text (str): Text containing Hebrew and possibly non-Hebrew characters
+
+        Returns:
+            str: Text with Hebrew segments reversed
+        """
+        if not text:
+            return text
+
+        # Split into segments
+        segments = HebrewTextHandler.split_text_to_segments(text)
+
+        # Process each segment
+        result = ""
+        for segment, is_hebrew in segments:
+            if is_hebrew:
+                # Reverse only Hebrew segments
+                result += segment[::-1]
+            else:
+                result += segment
+
+        return result
+
+    @staticmethod
+    def analyze_text(text: str) -> dict:
+        """
+        Analyze text for Hebrew content.
+
+        Args:
+            text (str): Text to analyze
+
+        Returns:
+            dict: Analysis results
+        """
+        segments = HebrewTextHandler.split_text_to_segments(text)
+        hebrew_count = sum(1 for _, is_hebrew in segments if is_hebrew)
+
+        return {
+            'contains_hebrew': hebrew_count > 0,
+            'hebrew_segments': hebrew_count,
+            'total_segments': len(segments),
+            'needs_conversion': hebrew_count > 0,
+            'original': text,
+            'converted': HebrewTextHandler.reverse_hebrew_words(text) if hebrew_count > 0 else text
+        }

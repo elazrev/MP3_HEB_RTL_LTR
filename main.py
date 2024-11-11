@@ -3,6 +3,7 @@ from flet import Page
 from src.models.mp3_file import MP3File
 import os
 
+
 class HebrewMP3App:
     def __init__(self, page: Page):
         self.page = page
@@ -35,8 +36,8 @@ class HebrewMP3App:
         # Files list
         self.files_list = ft.ListView(
             expand=True,
-            spacing=10,
-            padding=20,
+            spacing=5,
+            padding=30,
             height=400
         )
 
@@ -61,7 +62,7 @@ class HebrewMP3App:
 
         # Action buttons
         select_files_btn = ft.ElevatedButton(
-            "Select MP3 Files",
+            text="Select MP3 Files",
             icon=ft.icons.FOLDER_OPEN,
             on_click=lambda _: self.file_picker.pick_files(
                 allow_multiple=True,
@@ -70,22 +71,30 @@ class HebrewMP3App:
         )
 
         select_dir_btn = ft.ElevatedButton(
-            "Select Directory",
+            text="Select Directory",
             icon=ft.icons.FOLDER,
             on_click=lambda _: self.dir_picker.get_directory_path()
         )
 
         clear_btn = ft.ElevatedButton(
-            "Clear",
+            text="Clear",
             icon=ft.icons.CLEAR_ALL,
             on_click=self.clear_files
         )
+
+        save_btn = ft.ElevatedButton(
+            text="Save Changes",
+            icon=ft.icons.SAVE,
+            on_click=self.save_all_changes,
+            disabled=True
+        )
+        self.save_btn = save_btn  # Store reference
 
         # Add components to page
         self.page.add(
             header,
             ft.Row(
-                [select_files_btn, select_dir_btn, clear_btn],
+                [select_files_btn, select_dir_btn, clear_btn, save_btn],
                 alignment=ft.MainAxisAlignment.CENTER
             ),
             self.status_text,
@@ -112,33 +121,45 @@ class HebrewMP3App:
             return ft.ListTile(
                 leading=ft.Icon(ft.icons.MUSIC_NOTE),
                 title=ft.Column([
-                    ft.Text(title_preview['original'],
+                    ft.Container(
+                        content=ft.Text(
+                            title_preview['original'],
                             color="grey400",
-                            text_decoration=ft.TextDecoration.LINE_THROUGH),
+                            style=ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH)
+                        )
+                    ),
                     ft.Text(title_preview['converted'], color="blue400")
                 ]),
                 subtitle=ft.Column([
                     ft.Row([
                         ft.Text("Artist: ", size=12),
-                        ft.Text(artist_preview['original'],
+                        ft.Container(
+                            content=ft.Text(
+                                artist_preview['original'],
                                 color="grey400",
-                                text_decoration=ft.TextDecoration.LINE_THROUGH if artist_preview['analysis'][
-                                    'contains_hebrew'] else None),
-                        ft.Text(" → ", color="grey400") if artist_preview['analysis']['contains_hebrew'] else ft.Text(
-                            ""),
-                        ft.Text(artist_preview['converted'], color="blue400") if artist_preview['analysis'][
-                            'contains_hebrew'] else ft.Text("")
+                                style=ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH)
+                            ) if artist_preview['analysis']['contains_hebrew'] else
+                            ft.Text(artist_preview['original'])
+                        ),
+                        ft.Text(" → ", color="grey400")
+                        if artist_preview['analysis']['contains_hebrew'] else ft.Text(""),
+                        ft.Text(artist_preview['converted'], color="blue400")
+                        if artist_preview['analysis']['contains_hebrew'] else ft.Text("")
                     ]),
                     ft.Row([
                         ft.Text("Album: ", size=12),
-                        ft.Text(album_preview['original'],
+                        ft.Container(
+                            content=ft.Text(
+                                album_preview['original'],
                                 color="grey400",
-                                text_decoration=ft.TextDecoration.LINE_THROUGH if album_preview['analysis'][
-                                    'contains_hebrew'] else None),
-                        ft.Text(" → ", color="grey400") if album_preview['analysis']['contains_hebrew'] else ft.Text(
-                            ""),
-                        ft.Text(album_preview['converted'], color="blue400") if album_preview['analysis'][
-                            'contains_hebrew'] else ft.Text("")
+                                style=ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH)
+                            ) if album_preview['analysis']['contains_hebrew'] else
+                            ft.Text(album_preview['original'])
+                        ),
+                        ft.Text(" → ", color="grey400")
+                        if album_preview['analysis']['contains_hebrew'] else ft.Text(""),
+                        ft.Text(album_preview['converted'], color="blue400")
+                        if album_preview['analysis']['contains_hebrew'] else ft.Text("")
                     ])
                 ]),
                 trailing=ft.Row([
@@ -161,8 +182,10 @@ class HebrewMP3App:
                 leading=ft.Icon(ft.icons.MUSIC_NOTE),
                 title=ft.Text(mp3_file.tags['title'] or mp3_file.get_display_path()),
                 subtitle=ft.Column([
-                    ft.Text(f"Artist: {mp3_file.tags['artist']}" if mp3_file.tags['artist'] else "No artist"),
-                    ft.Text(f"Album: {mp3_file.tags['album']}" if mp3_file.tags['album'] else "No album")
+                    ft.Text(f"Artist: {mp3_file.tags['artist']}"
+                            if mp3_file.tags['artist'] else "No artist"),
+                    ft.Text(f"Album: {mp3_file.tags['album']}"
+                            if mp3_file.tags['album'] else "No album")
                 ]),
                 trailing=ft.IconButton(
                     icon=ft.icons.DELETE,
@@ -172,12 +195,133 @@ class HebrewMP3App:
                 )
             )
 
-        def convert_file_hebrew(self, mp3_file: MP3File):
-            """Convert Hebrew text in file tags"""
-            mp3_file.convert_hebrew_tags()
-            self.update_files_list()
-            self.status_text.value = f"Converted Hebrew text in {mp3_file.get_display_path()}"
+    def has_unsaved_changes(self) -> bool:
+        """Check if there are any unsaved changes"""
+        return any(
+            mp3_file.has_changes()
+            for mp3_file in self.files_to_process.values()
+        )
+
+    def update_save_button(self):
+        """Update save button enabled state"""
+        self.save_btn.disabled = not self.has_unsaved_changes()
+        self.page.update()
+
+    def show_confirmation_dialog(self, title: str, content: str,
+                                 action_text: str, action_callback):
+        """Show a confirmation dialog"""
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(title),
+            content=ft.Text(content),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda e: self.close_dialog()),
+                ft.TextButton(
+                    action_text,
+                    on_click=lambda e: self.handle_dialog_action(action_callback)
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        self.page.dialog = dialog
+        dialog.open = True
+        self.page.update()
+
+    def close_dialog(self):
+        """Close the current dialog"""
+        if self.page.dialog:
+            self.page.dialog.open = False
             self.page.update()
+
+    def handle_dialog_action(self, callback):
+        """Handle dialog action and close dialog"""
+        self.close_dialog()
+        callback()
+
+    def update_files_list(self):
+        """Update the files list display"""
+        self.files_list.controls.clear()
+        for mp3_file in self.files_to_process.values():
+            self.files_list.controls.append(self.create_file_tile(mp3_file))
+        self.page.update()
+
+    def save_all_changes(self, _):
+        """Save changes to all files"""
+        files_with_changes = [
+            f for f in self.files_to_process.values()
+            if f.has_changes()
+        ]
+
+        if not files_with_changes:
+            self.status_text.value = "No changes to save"
+            self.page.update()
+            return
+
+        self.show_confirmation_dialog(
+            title="Save Changes",
+            content=f"Save changes to {len(files_with_changes)} files?",
+            action_text="Save",
+            action_callback=self.process_save_changes
+        )
+
+    def process_save_changes(self):
+        """Process saving changes to files"""
+        success_count = 0
+        failed_files = []
+
+        self.status_text.value = "Saving changes..."
+        self.page.update()
+
+        for mp3_file in self.files_to_process.values():
+            if mp3_file.has_changes():
+                try:
+                    if mp3_file.save_changes():
+                        success_count += 1
+                    else:
+                        failed_files.append(mp3_file.get_display_path())
+                except Exception as e:
+                    print(f"Error saving {mp3_file.get_display_path()}: {str(e)}")
+                    failed_files.append(mp3_file.get_display_path())
+
+        # Update status
+        if failed_files:
+            self.status_text.value = (
+                f"Saved {success_count} files. Failed to save: "
+                f"{', '.join(failed_files)}"
+            )
+        else:
+            self.status_text.value = f"Successfully saved changes to {success_count} files"
+
+        # Update UI
+        self.update_files_list()
+        self.update_save_button()
+        self.page.update()
+
+    def convert_file_hebrew(self, mp3_file: MP3File):
+        """Convert Hebrew text in file tags"""
+        mp3_file.convert_hebrew_tags()
+        self.update_files_list()
+        self.update_save_button()
+        self.status_text.value = f"Converted Hebrew text in {mp3_file.get_display_path()}"
+        self.page.update()
+
+    def remove_file(self, file_path: str):
+        """Remove a file from the list"""
+        if file_path in self.files_to_process:
+            del self.files_to_process[file_path]
+            self.update_files_list()
+            self.update_save_button()
+            self.status_text.value = "File removed"
+            self.page.update()
+
+    def clear_files(self, _):
+        """Clear all files"""
+        self.files_to_process.clear()
+        self.files_list.controls.clear()
+        self.update_save_button()
+        self.status_text.value = "Cleared all files"
+        self.page.update()
 
     def on_files_picked(self, e: ft.FilePickerResultEvent):
         """Handle files being picked"""
@@ -228,29 +372,10 @@ class HebrewMP3App:
         self.status_text.value = f"Found {len(mp3_files)} MP3 files"
         self.page.update()
 
-    def update_files_list(self):
-        """Update the files list display"""
-        self.files_list.controls.clear()
-        for mp3_file in self.files_to_process.values():
-            self.files_list.controls.append(self.create_file_tile(mp3_file))
-
-    def remove_file(self, file_path: str):
-        """Remove a file from the list"""
-        if file_path in self.files_to_process:
-            del self.files_to_process[file_path]
-            self.update_files_list()
-            self.status_text.value = "File removed"
-            self.page.update()
-
-    def clear_files(self, _):
-        """Clear all files"""
-        self.files_to_process.clear()
-        self.files_list.controls.clear()
-        self.status_text.value = "Cleared all files"
-        self.page.update()
 
 def main(page: Page):
     HebrewMP3App(page)
+
 
 if __name__ == '__main__':
     ft.app(target=main)
