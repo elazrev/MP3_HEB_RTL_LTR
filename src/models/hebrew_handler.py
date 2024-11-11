@@ -9,17 +9,27 @@ class HebrewTextHandler:
     def is_hebrew(text: str) -> bool:
         """
         Check if text contains Hebrew characters.
-
-        Args:
-            text (str): Text to check
-
-        Returns:
-            bool: True if text contains Hebrew characters
+        More aggressive detection including nikud and special characters.
         """
         if not text:
             return False
-        hebrew_pattern = re.compile(r'[\u0590-\u05FF]')
+
+        hebrew_pattern = re.compile(r'[\u0590-\u05FF\uFB1D-\uFB4F]')
         return bool(hebrew_pattern.search(str(text)))
+
+    @staticmethod
+    def needs_rtl_fix(text: str) -> bool:
+        """
+        Check if text contains Hebrew and needs RTL fix.
+        More thorough check including context.
+        """
+        if not text:
+            return False
+
+        hebrew_chars = len(re.findall(r'[\u0590-\u05FF\uFB1D-\uFB4F]', text))
+        total_chars = len(text.strip())
+
+        return hebrew_chars > 0 and hebrew_chars / total_chars > 0.3
 
     @staticmethod
     def split_text_to_segments(text: str) -> List[Tuple[str, bool]]:
