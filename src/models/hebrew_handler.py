@@ -1,7 +1,8 @@
 from mutagen import File, id3
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import base64
+from .hebrew_handler import HebrewTextHandler
 
 
 class MP3File:
@@ -12,7 +13,9 @@ class MP3File:
         self.tags: Dict[str, str] = {}
         self.original_tags: Dict[str, str] = {}
         self.album_art: Optional[str] = None
+        self.hebrew_analysis: Dict[str, Dict] = {}
         self.load_tags()
+        self.analyze_tags()
 
     def load_tags(self) -> None:
         """Load MP3 tags and album art from file"""
@@ -43,6 +46,24 @@ class MP3File:
             }
             self.tags = self.original_tags.copy()
 
+    def analyze_tags(self) -> None:
+        """Analyze tags for Hebrew content"""
+        for tag_name, tag_value in self.original_tags.items():
+            self.hebrew_analysis[tag_name] = HebrewTextHandler.analyze_text(tag_value)
+
+    def has_hebrew(self) -> bool:
+        """Check if any tag contains Hebrew text"""
+        return any(
+            analysis['contains_hebrew']
+            for analysis in self.hebrew_analysis.values()
+        )
+
+    def convert_hebrew_tags(self) -> None:
+        """Convert Hebrew text in tags from RTL to LTR"""
+        for tag_name, analysis in self.hebrew_analysis.items():
+            if analysis['needs_conversion']:
+                self.tags[tag_name] = analysis['converted']
+
     def has_changes(self) -> bool:
         """Check if there are any changes in tags"""
         return any(
@@ -53,6 +74,22 @@ class MP3File:
     def get_display_path(self) -> str:
         """Get a user-friendly display path"""
         return os.path.basename(self.path)
+
+    def get_tag_preview(self, tag_name: str) -> Dict:
+        """
+        Get preview of original and converted tag value
+
+        Args:
+            tag_name (str): Name of the tag
+
+        Returns:
+            Dict: Original and converted values with Hebrew analysis
+        """
+        return {
+            'original': self.original_tags.get(tag_name, ''),
+            'converted': self.tags.get(tag_name, ''),
+            'analysis': self.hebrew_analysis.get(tag_name, {})
+        }
 
     def __str__(self) -> str:
         return f"{self.tags.get('artist', '')} - {self.tags.get('title', '')}"
