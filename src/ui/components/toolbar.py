@@ -1,13 +1,10 @@
+from .base_control import BaseControl
 import flet as ft
-from ..styles import AppTheme, AppAnimations
+from ..styles import AppTheme
 
 
-class Toolbar(ft.UserControl):
-    def __init__(self,
-                 on_select_files=None,
-                 on_select_directory=None,
-                 on_clear=None,
-                 on_save=None):
+class Toolbar(BaseControl):
+    def __init__(self, on_select_files=None, on_select_directory=None, on_clear=None, on_save=None):
         super().__init__()
         self.on_select_files = on_select_files
         self.on_select_directory = on_select_directory

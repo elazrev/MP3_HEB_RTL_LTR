@@ -1,8 +1,9 @@
+from .base_control import BaseControl
 import flet as ft
-from ..styles import AppTheme, AppAnimations
+from ..styles import AppTheme
 
 
-class StatusBar(ft.UserControl):
+class StatusBar(BaseControl):
     def __init__(self):
         super().__init__()
         self.status_text = None

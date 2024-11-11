@@ -1,9 +1,10 @@
+from .base_control import BaseControl
 import flet as ft
 from ...models.mp3_file import MP3File
 from ..styles import AppTheme
 
 
-class FileCard(ft.UserControl):
+class FileCard(BaseControl):
     def __init__(self, mp3_file: MP3File, on_convert=None, on_remove=None, on_selection_change=None):
         super().__init__()
         self.mp3_file = mp3_file
