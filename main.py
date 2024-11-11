@@ -5,14 +5,14 @@ from src.ui.components.file_card import FileCard
 from src.ui.components.status_bar import StatusBar
 from src.ui.components.toolbar import Toolbar
 from src.ui.components.dialog_builder import DialogBuilder
-from src.ui.styles import AppTheme, AppAnimations
+from src.ui.styles import AppTheme
 import os
 
 
 class HebrewMP3App:
     def __init__(self, page: Page):
         self.page = page
-        self.files_to_process = {}  # Dictionary to store MP3File objects
+        self.files_to_process = {}
         self.setup_page()
         self.initialize_components()
         self.build_ui()
@@ -20,12 +20,11 @@ class HebrewMP3App:
     def setup_page(self):
         """Configure the page settings"""
         self.page.title = "Hebrew MP3 Tag Fixer"
-        self.page.window.width = 1200
-        self.page.window.height = 800
-        self.page.padding = 20
-        self.page.theme_mode = ft.ThemeMode.DARK
+        self.page.window.width = AppTheme.WINDOW_WIDTH
+        self.page.window.height = AppTheme.WINDOW_HEIGHT
+        self.page.padding = AppTheme.PADDING_MEDIUM
         self.page.bgcolor = AppTheme.BACKGROUND
-        self.page.auto_scroll = True
+        self.page.theme_mode = ft.ThemeMode.LIGHT  # מצב בהיר
 
     def initialize_components(self):
         """Initialize UI components"""
@@ -37,78 +36,145 @@ class HebrewMP3App:
         # Status bar
         self.status_bar = StatusBar()
 
-        # Toolbar
-        self.toolbar = Toolbar(
-            on_select_files=lambda _: self.file_picker.pick_files(
-                allow_multiple=True,
-                allowed_extensions=['mp3']
-            ),
-            on_select_directory=lambda _: self.dir_picker.get_directory_path(),
-            on_clear=self.clear_files,
-            on_save=self.save_all_changes
-        )
-
-        # Files list
+        # Files list with smaller height
         self.files_list = ft.ListView(
             expand=True,
-            spacing=10,
-            padding=20,
-            auto_scroll=True
+            spacing=8,
+            padding=10,
+            height=300  # גובה קטן יותר
         )
 
     def build_ui(self):
         """Build the main UI"""
-        # Header
+        # Header - קומפקטי יותר
         header = ft.Container(
             content=ft.Column([
-                ft.Text(
-                    "Hebrew MP3 Tag Fixer",
-                    size=32,
-                    weight=ft.FontWeight.BOLD,
-                    color=AppTheme.PRIMARY
-                ),
-                ft.Text(
-                    "by elaz.rev",
-                    size=16,
-                    italic=True,
-                    color=AppTheme.SECONDARY
-                )
-            ],
-                spacing=5,
+                ft.Text("Hebrew MP3 Tag Fixer",
+                        size=24,  # גודל טקסט קטן יותר
+                        weight=ft.FontWeight.BOLD,
+                        color=AppTheme.TEXT_PRIMARY),
+                ft.Text("by elaz.rev",
+                        size=12,
+                        italic=True,
+                        color=AppTheme.TEXT_SECONDARY)
+            ], spacing=4,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.padding.only(bottom=AppTheme.PADDING_LARGE)
+            padding=ft.padding.only(bottom=AppTheme.PADDING_MEDIUM)
         )
 
-        # Files section
+        # Action Buttons - יותר קומפקטיים
+        action_buttons = ft.Row([
+            ft.ElevatedButton("Select Files",
+                              icon=ft.icons.FOLDER_OPEN,
+                              on_click=lambda _: self.file_picker.pick_files(
+                                  allow_multiple=True,
+                                  allowed_extensions=['mp3']
+                              )),
+            ft.ElevatedButton("Select Directory",
+                              icon=ft.icons.FOLDER,
+                              on_click=lambda _: self.dir_picker.get_directory_path()),
+            ft.ElevatedButton("Clear",
+                              icon=ft.icons.CLEAR_ALL,
+                              on_click=self.clear_files)
+        ], alignment=ft.MainAxisAlignment.CENTER)
+
+        # Files section - קומפקטי יותר
         files_section = ft.Container(
             content=ft.Column([
                 ft.Row([
-                    ft.Text(
-                        "Files to Process",
-                        size=20,
-                        weight=ft.FontWeight.BOLD,
-                        color=AppTheme.PRIMARY
-                    ),
-                    ft.Container(
-                        content=ft.Text(
-                            f"({len(self.files_to_process)} files)",
-                            color=AppTheme.TEXT_SECONDARY
-                        ),
-                        padding=ft.padding.only(left=10)
-                    )
+                    ft.Text("Files with Hebrew",
+                            size=16,
+                            weight=ft.FontWeight.BOLD,
+                            color=AppTheme.TEXT_PRIMARY),
+                    ft.Text(f"({len(self.files_to_process)} files)",
+                            color=AppTheme.TEXT_SECONDARY,
+                            size=14)
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 self.files_list
             ]),
-            padding=ft.padding.only(top=AppTheme.PADDING_MEDIUM)
+            padding=ft.padding.symmetric(vertical=AppTheme.PADDING_SMALL)
         )
 
         # Add components to page
         self.page.add(
             header,
-            self.toolbar,
+            action_buttons,
             self.status_bar,
             files_section
         )
+
+    def clear_files(self, _):
+        """Clear all files"""
+        self.files_to_process.clear()
+        self.files_list.controls.clear()
+        self.status_bar.show_success("Cleared all files")
+        self.page.update()
+
+    def on_files_picked(self, e: ft.FilePickerResultEvent):
+        """Handle files being picked"""
+        if not e.files:
+            return
+
+        # Clear existing files when selecting new files
+        self.files_to_process.clear()
+        self.files_list.controls.clear()
+
+        self.status_bar.show_progress(f"Processing files...")
+
+        hebrew_files_count = 0
+        for f in e.files:
+            try:
+                mp3_file = MP3File(f.path)
+                # Add only files with Hebrew text
+                if mp3_file.has_hebrew():
+                    self.files_to_process[f.path] = mp3_file
+                    hebrew_files_count += 1
+            except Exception as error:
+                self.status_bar.show_error(f"Error processing {f.name}")
+
+        self.update_files_list()
+        self.status_bar.show_success(
+            f"Found {hebrew_files_count} files with Hebrew text"
+        )
+
+    def on_directory_picked(self, e: ft.FilePickerResultEvent):
+        """Handle directory being picked"""
+        if not e.path:
+            return
+
+        self.status_bar.show_progress("Scanning directory...")
+
+        try:
+            # Clear existing files
+            self.files_to_process.clear()
+            self.files_list.controls.clear()
+
+            # Scan directory for MP3 files
+            total_files = 0
+            hebrew_files = 0
+
+            for root, _, files in os.walk(e.path):
+                for file in files:
+                    if file.lower().endswith('.mp3'):
+                        total_files += 1
+                        try:
+                            file_path = os.path.join(root, file)
+                            mp3_file = MP3File(file_path)
+                            # Add only files with Hebrew text
+                            if mp3_file.has_hebrew():
+                                self.files_to_process[file_path] = mp3_file
+                                hebrew_files += 1
+                        except Exception as error:
+                            continue
+
+            # Update UI
+            self.update_files_list()
+            self.status_bar.show_success(
+                f"Found {hebrew_files} files with Hebrew text out of {total_files} MP3 files"
+            )
+
+        except Exception as error:
+            self.status_bar.show_error(f"Error scanning directory: {str(error)}")
 
     def update_files_list(self):
         """Update the files list display"""
@@ -123,8 +189,6 @@ class HebrewMP3App:
                 )
             )
 
-        # Update save button state
-        self.toolbar.update_save_button(self.has_unsaved_changes())
         self.page.update()
 
     def on_files_picked(self, e: ft.FilePickerResultEvent):

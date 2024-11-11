@@ -2,29 +2,33 @@ import flet as ft
 
 
 class AppTheme:
-    # Colors
-    PRIMARY = "#4A90E2"  # כחול עיקרי
-    SECONDARY = "#2ECC71"  # ירוק משני
-    BACKGROUND = "#1E1E1E"  # רקע כהה
-    CARD_BACKGROUND = "#2D2D2D"  # רקע כרטיסיה
-    ERROR = "#E74C3C"  # אדום לשגיאות
-    SUCCESS = "#27AE60"  # ירוק להצלחות
-    WARNING = "#F39C12"  # כתום לאזהרות
+    # Colors - גווני כחול-אפור בהירים יותר
+    PRIMARY = "#6C8EBF"  # כחול רך יותר
+    SECONDARY = "#82B366"  # ירוק רך
+    BACKGROUND = "#F5F5F5"  # רקע בהיר מאוד
+    CARD_BACKGROUND = "#FFFFFF"  # רקע לבן לכרטיסיות
+    ERROR = "#D85959"  # אדום רך יותר
+    SUCCESS = "#76B376"  # ירוק רך
+    WARNING = "#E8B460"  # כתום רך
 
     # Text Colors
-    TEXT_PRIMARY = "#FFFFFF"  # טקסט ראשי
-    TEXT_SECONDARY = "#B3B3B3"  # טקסט משני
-    TEXT_HINT = "#757575"  # טקסט רמז
+    TEXT_PRIMARY = "#2E2E2E"  # כמעט שחור
+    TEXT_SECONDARY = "#666666"  # אפור כהה
+    TEXT_HINT = "#999999"  # אפור בהיר
 
     # Spacing
     PADDING_SMALL = 8
-    PADDING_MEDIUM = 16
-    PADDING_LARGE = 24
+    PADDING_MEDIUM = 12
+    PADDING_LARGE = 16
 
     # Border Radius
     BORDER_RADIUS_SMALL = 4
     BORDER_RADIUS_MEDIUM = 8
     BORDER_RADIUS_LARGE = 12
+
+    # Window Size
+    WINDOW_WIDTH = 800  # רוחב חלון קטן יותר
+    WINDOW_HEIGHT = 600  # גובה חלון קטן יותר
 
     @staticmethod
     def get_card_style():
@@ -32,12 +36,7 @@ class AppTheme:
             "bgcolor": AppTheme.CARD_BACKGROUND,
             "border_radius": AppTheme.BORDER_RADIUS_MEDIUM,
             "padding": AppTheme.PADDING_MEDIUM,
-            "shadow": ft.BoxShadow(
-                spread_radius=1,
-                blur_radius=5,
-                color=ft.colors.with_opacity(0.3, "black"),
-                offset=ft.Offset(0, 2)
-            )
+            "border": ft.border.all(1, "#E0E0E0")  # מסגרת עדינה
         }
 
     @staticmethod
