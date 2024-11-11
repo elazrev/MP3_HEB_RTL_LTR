@@ -1,6 +1,6 @@
 from .base_control import BaseControl
 import flet as ft
-from ..styles import AppTheme
+from ..styles import AppTheme, AppAnimations
 
 
 class Toolbar(BaseControl):

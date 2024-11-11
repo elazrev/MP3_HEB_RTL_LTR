@@ -27,6 +27,9 @@ class AppTheme:
     # Gradients
     HEADER_GRADIENT = ["#3498db", "#2980b9"]
 
+    PADDING_MEDIUM = 10
+    PADDING_SMALL = 5
+
     # Shadows
     CARD_SHADOW = ft.BoxShadow(
         spread_radius=1,
