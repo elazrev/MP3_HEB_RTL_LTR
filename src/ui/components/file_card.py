@@ -1,159 +1,107 @@
 import flet as ft
 from ...models.mp3_file import MP3File
-from ..styles import AppTheme, AppAnimations
+from ..styles import AppTheme
 
 
 class FileCard(ft.UserControl):
-    def __init__(self, mp3_file: MP3File, on_convert=None, on_remove=None):
+    def __init__(self, mp3_file: MP3File, on_convert=None, on_remove=None, on_selection_change=None):
         super().__init__()
         self.mp3_file = mp3_file
         self.on_convert = on_convert
         self.on_remove = on_remove
-        self.animation = AppAnimations.get_fade_in()
+        self.on_selection_change = on_selection_change
 
     def build(self):
-        return ft.Container(
-            content=self._build_card_content(),
-            **AppTheme.get_card_style(),
-            animate=self.animation
+        card = ft.Card(
+            content=ft.Container(
+                content=ft.Row([
+                    # Checkbox
+                    ft.Checkbox(
+                        value=self.mp3_file.selected,
+                        on_change=self._handle_selection_change
+                    ),
+
+                    # Album Art
+                    self._build_album_art(),
+
+                    # File Details
+                    ft.Column([
+                        self._build_tag_preview("Title", 'title'),
+                        self._build_tag_preview("Artist", 'artist'),
+                        self._build_tag_preview("Album", 'album')
+                    ], expand=True),
+
+                    # Actions
+                    ft.Column([
+                        ft.IconButton(
+                            icon=ft.icons.EDIT,
+                            tooltip="Convert Hebrew",
+                            on_click=lambda e: self.on_convert(self.mp3_file) if self.on_convert else None
+                        ),
+                        ft.IconButton(
+                            icon=ft.icons.DELETE,
+                            icon_color=AppTheme.ERROR,
+                            tooltip="Remove from list",
+                            on_click=lambda e: self.on_remove(self.mp3_file) if self.on_remove else None
+                        )
+                    ])
+                ]),
+                padding=10
+            )
         )
 
-    def _build_card_content(self):
-        if self.mp3_file.has_hebrew():
-            return self._build_hebrew_content()
-        return self._build_simple_content()
+        return card
 
-    def _build_hebrew_content(self):
-        title_preview = self.mp3_file.get_tag_preview('title')
-        artist_preview = self.mp3_file.get_tag_preview('artist')
-        album_preview = self.mp3_file.get_tag_preview('album')
-
-        return ft.Column([
-            # File Header
-            ft.Row([
-                ft.Icon(ft.icons.MUSIC_NOTE, color=AppTheme.PRIMARY),
-                ft.Container(width=AppTheme.PADDING_SMALL),
-                ft.Text("Hebrew Text Detected",
-                        color=AppTheme.PRIMARY,
-                        weight=ft.FontWeight.BOLD)
-            ]),
-
-            ft.Divider(height=1, color=AppTheme.TEXT_HINT),
-
-            # Title Section
-            self._build_preview_section(
-                "Title",
-                title_preview['original'],
-                title_preview['converted'],
-                is_hebrew=True
-            ),
-
-            # Artist Section
-            self._build_preview_section(
-                "Artist",
-                artist_preview['original'],
-                artist_preview['converted'],
-                is_hebrew=artist_preview['analysis']['contains_hebrew']
-            ),
-
-            # Album Section
-            self._build_preview_section(
-                "Album",
-                album_preview['original'],
-                album_preview['converted'],
-                is_hebrew=album_preview['analysis']['contains_hebrew']
-            ),
-
-            # Actions
-            ft.Row([
-                ft.Container(
-                    content=ft.IconButton(
-                        icon=ft.icons.EDIT,
-                        icon_color=AppTheme.SECONDARY,
-                        tooltip="Convert Hebrew",
-                        on_click=lambda e: self.on_convert(self.mp3_file) if self.on_convert else None
-                    ),
-                    tooltip="Convert Hebrew text to LTR"
-                ),
-                ft.Container(
-                    content=ft.IconButton(
-                        icon=ft.icons.DELETE,
-                        icon_color=AppTheme.ERROR,
-                        tooltip="Remove file",
-                        on_click=lambda e: self.on_remove(self.mp3_file) if self.on_remove else None
-                    ),
-                    tooltip="Remove file from list"
-                )
-            ], alignment=ft.MainAxisAlignment.END)
-        ])
-
-    def _build_preview_section(self, label: str, original: str, converted: str, is_hebrew: bool):
-        if not is_hebrew:
+    def _build_album_art(self):
+        """Build album art display"""
+        if self.mp3_file.album_art:
+            return ft.Image(
+                src=f"data:image/jpeg;base64,{self.mp3_file.album_art}",
+                width=50,
+                height=50,
+                fit=ft.ImageFit.COVER,
+                border_radius=ft.border_radius.all(5),
+            )
+        else:
             return ft.Container(
-                content=ft.Column([
-                    ft.Text(label, size=12, color=AppTheme.TEXT_HINT),
-                    ft.Text(original)
-                ]),
-                padding=ft.padding.symmetric(vertical=AppTheme.PADDING_SMALL)
+                content=ft.Icon(
+                    ft.icons.ALBUM,
+                    color=AppTheme.TEXT_SECONDARY
+                ),
+                width=50,
+                height=50,
+                bgcolor=AppTheme.CARD_BACKGROUND,
+                border_radius=5,
+                border=ft.border.all(1, AppTheme.TEXT_HINT)
             )
 
-        return ft.Container(
-            content=ft.Column([
-                ft.Text(label, size=12, color=AppTheme.TEXT_HINT),
-                ft.Row([
-                    ft.Container(
-                        content=ft.Text(
-                            original,
-                            color=AppTheme.TEXT_SECONDARY,
-                            style=ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH)
-                        ),
-                        tooltip="Original text"
-                    ),
-                    ft.Icon(
-                        ft.icons.ARROW_FORWARD,
-                        color=AppTheme.SECONDARY,
-                        size=16
-                    ),
-                    ft.Container(
-                        content=ft.Text(
-                            converted,
-                            color=AppTheme.SECONDARY,
-                            weight=ft.FontWeight.BOLD
-                        ),
-                        tooltip="Converted text"
-                    )
-                ])
-            ]),
-            padding=ft.padding.symmetric(vertical=AppTheme.PADDING_SMALL)
-        )
+    def _build_tag_preview(self, label: str, tag_name: str):
+        """Build preview for a single tag"""
+        original = self.mp3_file.original_tags[tag_name]
+        new = self.mp3_file.tags[tag_name]
 
-    def _build_simple_content(self):
+        if original == new:
+            return ft.Text(f"{label}: {original}")
+
         return ft.Column([
+            ft.Text(label, size=12, color=AppTheme.TEXT_SECONDARY),
             ft.Row([
-                ft.Icon(ft.icons.MUSIC_NOTE, color=AppTheme.TEXT_HINT),
-                ft.Container(width=AppTheme.PADDING_SMALL),
-                ft.Text(self.mp3_file.tags['title'] or self.mp3_file.get_display_path())
-            ]),
-            ft.Container(height=AppTheme.PADDING_SMALL),
-            ft.Text(
-                f"Artist: {self.mp3_file.tags['artist']}" if self.mp3_file.tags['artist'] else "No artist",
-                color=AppTheme.TEXT_SECONDARY,
-                size=14
-            ),
-            ft.Text(
-                f"Album: {self.mp3_file.tags['album']}" if self.mp3_file.tags['album'] else "No album",
-                color=AppTheme.TEXT_SECONDARY,
-                size=14
-            ),
-            ft.Row([
-                ft.Container(
-                    content=ft.IconButton(
-                        icon=ft.icons.DELETE,
-                        icon_color=AppTheme.ERROR,
-                        tooltip="Remove file",
-                        on_click=lambda e: self.on_remove(self.mp3_file) if self.on_remove else None
-                    ),
-                    tooltip="Remove file from list"
+                ft.Text(
+                    original,
+                    style=ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH),
+                    color=AppTheme.TEXT_SECONDARY
+                ),
+                ft.Text(" → "),
+                ft.Text(
+                    new,
+                    color=AppTheme.PRIMARY,
+                    weight=ft.FontWeight.BOLD
                 )
-            ], alignment=ft.MainAxisAlignment.END)
+            ])
         ])
+
+    def _handle_selection_change(self, e):
+        """Handle checkbox selection change"""
+        self.mp3_file.selected = e.value
+        if self.on_selection_change:
+            self.on_selection_change(self.mp3_file)
