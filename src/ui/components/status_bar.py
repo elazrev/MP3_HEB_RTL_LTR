@@ -13,8 +13,7 @@ class StatusBar(ft.UserControl):
         self.status_text = ft.Text(
             color=AppTheme.TEXT_SECONDARY,
             size=14,
-            weight=ft.FontWeight.W_500,
-            animate=AppAnimations.get_fade_in()
+            weight=ft.FontWeight.W_500
         )
 
         self.progress_ring = ft.ProgressRing(
@@ -34,8 +33,7 @@ class StatusBar(ft.UserControl):
                     self.status_text
                 ],
                 alignment=ft.MainAxisAlignment.CENTER
-            ),
-            animate=AppAnimations.get_fade_in()
+            )
         )
 
     def show_progress(self, message: str):

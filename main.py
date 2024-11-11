@@ -25,6 +25,7 @@ class HebrewMP3App:
         self.page.padding = 20
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.bgcolor = AppTheme.BACKGROUND
+        self.page.auto_scroll = True
 
     def initialize_components(self):
         """Initialize UI components"""
@@ -75,7 +76,6 @@ class HebrewMP3App:
             ],
                 spacing=5,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            animate=AppAnimations.get_fade_in(),
             padding=ft.padding.only(bottom=AppTheme.PADDING_LARGE)
         )
 
@@ -99,8 +99,7 @@ class HebrewMP3App:
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 self.files_list
             ]),
-            padding=ft.padding.only(top=AppTheme.PADDING_MEDIUM),
-            animate=AppAnimations.get_slide_in()
+            padding=ft.padding.only(top=AppTheme.PADDING_MEDIUM)
         )
 
         # Add components to page
