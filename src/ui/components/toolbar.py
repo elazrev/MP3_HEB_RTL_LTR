@@ -60,3 +60,4 @@ class Toolbar(BaseControl):
         if self.save_button:
             self.save_button.disabled = not has_changes
             self.update()
+
