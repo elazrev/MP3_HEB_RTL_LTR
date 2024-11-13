@@ -11,7 +11,8 @@ import os
 class HebrewMP3App:
     def __init__(self, page: Page):
         self.page = page
-        self.files_to_process = {}
+        self.files_to_process = {}  # Dictionary to store MP3File objects
+        self.has_unsaved_changes = False
         self.setup_page()
         self.initialize_components()
         self.build_ui()
@@ -25,13 +26,13 @@ class HebrewMP3App:
         self.page.window.min_height = AppTheme.WINDOW_MIN_HEIGHT
         self.page.padding = 0  # Remove padding for full-width header
         self.page.bgcolor = AppTheme.BACKGROUND
-        self.page.window.center()  # Center the window on screen
+        self.page.window.center()
 
         # Set theme mode
         self.page.theme_mode = ft.ThemeMode.LIGHT
         self.page.theme = ft.Theme(
             color_scheme_seed=AppTheme.PRIMARY,
-            visual_density=ft.VisualDensity.COMFORTABLE  # Fixed deprecation warning
+            visual_density=ft.VisualDensity.COMFORTABLE
         )
 
     def initialize_components(self):
@@ -44,32 +45,43 @@ class HebrewMP3App:
         # Status bar
         self.status_bar = StatusBar()
 
-        # Action buttons container
+        # Action buttons
+        select_files_btn = ft.ElevatedButton(
+            text="Select Files",
+            icon=ft.icons.FOLDER_OPEN,
+            on_click=lambda _: self.file_picker.pick_files(
+                allow_multiple=True,
+                allowed_extensions=['mp3']
+            ),
+            style=AppTheme.get_button_style()
+        )
+
+        select_dir_btn = ft.ElevatedButton(
+            text="Select Directory",
+            icon=ft.icons.FOLDER,
+            on_click=lambda _: self.dir_picker.get_directory_path(),
+            style=AppTheme.get_button_style()
+        )
+
+        clear_btn = ft.ElevatedButton(
+            text="Clear All",
+            icon=ft.icons.CLEAR_ALL,
+            on_click=self.clear_files,
+            style=AppTheme.get_button_style(primary=False)
+        )
+
+        # Add tooltips
+        select_files_btn.tooltip = "Select MP3 files with Hebrew text"
+        select_dir_btn.tooltip = "Select a directory containing MP3 files"
+        clear_btn.tooltip = "Clear all selected files"
+
         self.action_buttons = ft.Container(
             content=ft.Row([
-                ft.ElevatedButton(
-                    text="Select Files",
-                    icon=ft.icons.FOLDER_OPEN,
-                    on_click=lambda _: self.file_picker.pick_files(
-                        allow_multiple=True,
-                        allowed_extensions=['mp3']
-                    ),
-                    style=AppTheme.get_button_style()
-                ),
+                select_files_btn,
                 ft.Container(width=10),
-                ft.ElevatedButton(
-                    text="Select Directory",
-                    icon=ft.icons.FOLDER,
-                    on_click=lambda _: self.dir_picker.get_directory_path(),
-                    style=AppTheme.get_button_style()
-                ),
+                select_dir_btn,
                 ft.Container(width=10),
-                ft.ElevatedButton(
-                    text="Clear All",
-                    icon=ft.icons.CLEAR_ALL,
-                    on_click=self.clear_files,
-                    style=AppTheme.get_button_style(primary=False)
-                )
+                clear_btn
             ], alignment=ft.MainAxisAlignment.CENTER),
             padding=20
         )
@@ -86,34 +98,30 @@ class HebrewMP3App:
         # Selection controls
         self.select_all_checkbox = ft.Checkbox(
             value=False,
-            on_change=self._handle_select_all
+            on_change=self._handle_select_all,
+            label="Select All Files"
         )
 
-        # Bulk action buttons
-        self.bulk_actions = ft.Row([
-            ft.ElevatedButton(
-                text="Convert Selected",
-                icon=ft.icons.EDIT,
-                on_click=self._handle_convert_selected,
-                style=AppTheme.get_button_style(),
-                disabled=True
-            ),
-            ft.Container(width=10),
-            ft.ElevatedButton(
+        # Save button - שינוי כאן
+        self.save_button = ft.Container(
+            content=ft.ElevatedButton(
                 text="Save Changes",
                 icon=ft.icons.SAVE,
-                on_click=self._handle_save_selected,
+                on_click=self._handle_save_changes,
                 style=AppTheme.get_button_style(primary=True),
-                disabled=True
+                disabled=True,
+                tooltip="Save changes to selected files"
             )
-        ], visible=False)
-
-        # Progress bar
-        self.progress_bar = ft.ProgressBar(
-            visible=False,
-            color=AppTheme.SECONDARY,
-            bgcolor=ft.colors.with_opacity(0.1, AppTheme.SECONDARY)
         )
+
+    def _update_ui(self):
+        """Update UI safely"""
+        # עדכון כאן
+        if self.save_button:
+            self.save_button.disabled = not self.has_unsaved_changes
+        self._update_file_count()
+        if self.page:
+            self.page.update()
 
     def build_ui(self):
         """Build the main UI"""
@@ -145,7 +153,7 @@ class HebrewMP3App:
             shadow=AppTheme.CARD_SHADOW
         )
 
-        # Files section with improved visuals
+        # Files section
         files_section = ft.Container(
             content=ft.Column([
                 # Section header
@@ -161,45 +169,110 @@ class HebrewMP3App:
                             )
                         ]),
                         ft.Container(
-                            content=ft.Text(
-                                f"{len(self.files_to_process)} files",
-                                color=AppTheme.TEXT_SECONDARY,
-                                size=14
-                            ),
-                            bgcolor=AppTheme.BACKGROUND,
-                            padding=ft.padding.all(8),
-                            border_radius=16
+                            content=ft.Row([
+                                ft.Text(
+                                    f"{len(self.files_to_process)} files",
+                                    color=AppTheme.TEXT_SECONDARY,
+                                    size=14
+                                ),
+                                ft.Container(
+                                    content=ft.Text(
+                                        "Unsaved Changes",
+                                        color=AppTheme.WARNING,
+                                        size=14,
+                                        weight=ft.FontWeight.BOLD
+                                    ),
+                                    visible=self.has_unsaved_changes
+                                )
+                            ])
                         )
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     padding=ft.padding.only(bottom=12)
                 ),
 
-                # Selection controls
+                # Action buttons row
                 ft.Container(
                     content=ft.Row([
+                        ft.ElevatedButton(
+                            text="Select Files",
+                            icon=ft.icons.FOLDER_OPEN,
+                            on_click=lambda _: self.file_picker.pick_files(
+                                allow_multiple=True,
+                                allowed_extensions=['mp3']
+                            ),
+                            style=AppTheme.get_button_style(),
+                            tooltip="Select MP3 files with Hebrew text"
+                        ),
+                        ft.Container(width=10),
+                        ft.ElevatedButton(
+                            text="Select Directory",
+                            icon=ft.icons.FOLDER,
+                            on_click=lambda _: self.dir_picker.get_directory_path(),
+                            style=AppTheme.get_button_style(),
+                            tooltip="Select a directory containing MP3 files"
+                        ),
+                        ft.Container(width=10),
+                        ft.ElevatedButton(
+                            text="Clear All",
+                            icon=ft.icons.CLEAR_ALL,
+                            on_click=self.clear_files,
+                            style=AppTheme.get_button_style(primary=False),
+                            tooltip="Clear all selected files"
+                        )
+                    ], alignment=ft.MainAxisAlignment.CENTER),
+                    padding=ft.padding.symmetric(vertical=10)
+                ),
+
+                # Selection and action controls
+                ft.Container(
+                    content=ft.Column([
+                        # Select all checkbox and file count
                         ft.Row([
-                            self.select_all_checkbox,
+                            ft.Checkbox(
+                                value=False,
+                                on_change=self._handle_select_all,
+                                label="Select All Files",
+                                label_style=ft.TextStyle(
+                                    color=AppTheme.TEXT_PRIMARY,
+                                    weight=ft.FontWeight.BOLD,
+                                    size=14
+                                )
+                            ),
                             ft.Text(
-                                "Select All Files",
-                                color=AppTheme.TEXT_PRIMARY,
-                                weight=ft.FontWeight.BOLD,
+                                f"({len(self.files_to_process)} files selected)",
+                                color=AppTheme.TEXT_SECONDARY,
                                 size=14
                             )
-                        ]),
-                        self.bulk_actions
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ], alignment=ft.MainAxisAlignment.START),
+
+                        # Action buttons
+                        ft.Row([
+                            ft.ElevatedButton(
+                                text="Convert Selected",
+                                icon=ft.icons.EDIT,
+                                on_click=self._handle_convert_selected,
+                                style=AppTheme.get_button_style(),
+                                tooltip="Convert Hebrew text in selected files"
+                            ),
+                            ft.Container(width=10),  # Spacing
+                            ft.ElevatedButton(
+                                text="Save Changes",
+                                icon=ft.icons.SAVE,
+                                on_click=self._handle_save_changes,
+                                style=AppTheme.get_button_style(primary=True),
+                                tooltip="Save changes to selected files"
+                            )
+                        ], alignment=ft.MainAxisAlignment.END)
+                    ]),
                     padding=10,
                     bgcolor=AppTheme.BACKGROUND,
                     border_radius=8,
                     visible=bool(self.files_to_process)
                 ),
 
-                # Status and progress
+                # Status bar
                 ft.Container(
-                    content=ft.Column([
-                        self.status_bar,
-                        self.progress_bar
-                    ]),
+                    content=self.status_bar,
                     padding=ft.padding.symmetric(vertical=8)
                 ),
 
@@ -230,7 +303,6 @@ class HebrewMP3App:
         # Add all components to page
         self.page.add(
             header,
-            self.action_buttons,
             files_section,
             footer
         )
@@ -238,7 +310,16 @@ class HebrewMP3App:
     def _update_ui(self):
         """Update UI safely"""
         if self.page:
+            self._update_file_count()
             self.page.update()
+
+    def _update_file_count(self):
+        """Update the file count and unsaved changes indicator"""
+        selected_count = sum(1 for f in self.files_to_process.values() if f.selected)
+        total_count = len(self.files_to_process)
+        self.has_unsaved_changes = any(
+            f.has_changes() for f in self.files_to_process.values() if f.selected
+        )
 
     def on_files_picked(self, e: ft.FilePickerResultEvent):
         """Handle files being picked"""
@@ -247,129 +328,171 @@ class HebrewMP3App:
 
         # Clear existing files when selecting new files
         self.files_to_process.clear()
-        self.status_bar.show_progress(f"Processing files...")
+        self.status_bar.show_progress(f"Processing {len(e.files)} files...")
 
-        # Process files with detailed error handling and logging
-        total_files = len(e.files)
-        processed_files = 0
-        hebrew_files = 0
-
+        hebrew_files_count = 0
         for f in e.files:
             try:
-                processed_files += 1
-                self.status_bar.show_progress(f"Processing file {processed_files}/{total_files}")
-
                 mp3_file = MP3File(f.path)
                 if mp3_file.has_hebrew():
                     self.files_to_process[f.path] = mp3_file
-                    hebrew_files += 1
+                    hebrew_files_count += 1
+            except Exception:
+                continue
 
-            except Exception as error:
-                print(f"Error processing {f.name}: {str(error)}")  # Debug logging
-
-        # Update UI with results
-        if hebrew_files > 0:
+        self.update_files_list()
+        if hebrew_files_count > 0:
             self.status_bar.show_success(
-                f"Found {hebrew_files} files with Hebrew text out of {total_files} files"
+                f"Found {hebrew_files_count} files with Hebrew text"
             )
         else:
             self.status_bar.show_error("No files with Hebrew text found")
-
-        self.update_files_list()
 
     def on_directory_picked(self, e: ft.FilePickerResultEvent):
         """Handle directory being picked"""
         if not e.path:
             return
 
-        self.status_bar.show_progress("Scanning directory...")
-        self.files_to_process.clear()
-
         try:
+            self.status_bar.show_progress("Scanning directory...")
+            self.files_to_process.clear()
+
             # Scan directory for MP3 files
             total_files = 0
             hebrew_files = 0
 
-            for root, _, files in os.walk(e.path):
+            # Use os.walk with error handling
+            for root, _, files in os.walk(e.path, onerror=None):
                 for file in files:
                     if file.lower().endswith('.mp3'):
-                        total_files += 1
                         try:
+                            total_files += 1
                             file_path = os.path.join(root, file)
                             self.status_bar.show_progress(f"Processing file {total_files}")
 
-                            mp3_file = MP3File(file_path)
-                            print(f"Processing {file_path}")  # Debug logging
-                            print(f"Tags: {mp3_file.tags}")  # Debug logging
+                            # Check if file is accessible
+                            if not os.access(file_path, os.R_OK):
+                                continue
 
-                            if mp3_file.has_hebrew():
+                            mp3_file = MP3File(file_path)
+                            if mp3_file and mp3_file.has_hebrew():
                                 self.files_to_process[file_path] = mp3_file
                                 hebrew_files += 1
-                                print(f"Hebrew found in: {file_path}")  # Debug logging
 
-                        except Exception as error:
-                            print(f"Error processing {file_path}: {str(error)}")  # Debug logging
+                        except (PermissionError, OSError):
+                            continue
+                        except Exception:
                             continue
 
             # Update UI
             self.update_files_list()
+
+            # Show results
             if hebrew_files > 0:
                 self.status_bar.show_success(
                     f"Found {hebrew_files} files with Hebrew text out of {total_files} MP3 files"
                 )
             else:
-                self.status_bar.show_error(
-                    f"No files with Hebrew text found in {total_files} MP3 files"
-                )
+                if total_files > 0:
+                    self.status_bar.show_error(
+                        f"No files with Hebrew text found in {total_files} MP3 files"
+                    )
+                else:
+                    self.status_bar.show_error("No MP3 files found in directory")
 
+        except PermissionError:
+            self.status_bar.show_error("Access denied to directory")
         except Exception as error:
             self.status_bar.show_error(f"Error scanning directory: {str(error)}")
+        finally:
+            self._update_ui()
+
+    def _update_file_count(self):
+        """Update file count display"""
+        selected_count = sum(1 for f in self.files_to_process.values() if f.selected)
+        total_count = len(self.files_to_process)
+
+        if total_count > 0:
+            if selected_count == total_count:
+                self.select_all_checkbox.value = True
+            elif selected_count == 0:
+                self.select_all_checkbox.value = False
 
     def update_files_list(self):
         """Update the files list display"""
         self.files_list.controls.clear()
 
         for mp3_file in self.files_to_process.values():
-            self.files_list.controls.append(
-                FileCard(
-                    mp3_file=mp3_file,
-                    on_convert=self.convert_file_hebrew,
-                    on_remove=self.remove_file,
-                    on_selection_change=self._handle_file_selection_change
-                )
+            card = FileCard(
+                mp3_file=mp3_file,
+                on_convert=self.convert_file_hebrew,
+                on_remove=self.remove_file,
+                on_selection_change=self._handle_file_selection_change
             )
+            self.files_list.controls.append(card)
 
-        self._update_bulk_actions()
         self._update_ui()
 
     def _handle_select_all(self, e):
         """Handle select all checkbox change"""
-        selected = e.value
+        selected = e.control.value
         for mp3_file in self.files_to_process.values():
             mp3_file.selected = selected
         self.update_files_list()
-        self._update_bulk_actions()
+        self._update_file_count()
+
+    def _handle_file_selection_change(self, mp3_file: MP3File):
+        """Handle individual file selection change"""
+        self._update_ui()
+        self.select_all_checkbox.value = all(
+            f.selected for f in self.files_to_process.values()
+        )
+
+    def convert_file_hebrew(self, mp3_file: MP3File):
+        """Convert Hebrew text in file tags"""
+        try:
+            mp3_file.convert_hebrew_tags()
+            self.has_unsaved_changes = True
+            self.update_files_list()
+            self.status_bar.show_success(f"Converted Hebrew text in {mp3_file.get_display_path()}")
+        except Exception:
+            self.status_bar.show_error(f"Error converting file: {mp3_file.get_display_path()}")
 
     def _handle_convert_selected(self, _):
-        """Convert all selected files"""
+        """Convert Hebrew text in all selected files"""
+        selected_files = [
+            f for f in self.files_to_process.values()
+            if f.selected
+        ]
+
+        if not selected_files:
+            self.status_bar.show_error("No files selected")
+            return
+
         converted_count = 0
-        for mp3_file in self.files_to_process.values():
-            if mp3_file.selected:
-                try:
-                    mp3_file.convert_hebrew_tags()
-                    converted_count += 1
-                except Exception as e:
-                    print(f"Error converting {mp3_file.path}: {str(e)}")
+        for mp3_file in selected_files:
+            try:
+                mp3_file.convert_hebrew_tags()
+                converted_count += 1
+            except Exception as e:
+                self.status_bar.show_error(
+                    f"Error converting {mp3_file.get_display_path()}"
+                )
+                continue
 
         if converted_count > 0:
-            self.status_bar.show_success(f"Converted {converted_count} files")
+            self.status_bar.show_success(
+                f"Converted Hebrew text in {converted_count} files"
+            )
+            self.has_unsaved_changes = True
+            self.update_files_list()
         else:
-            self.status_bar.show_error("No files selected for conversion")
+            self.status_bar.show_error("No files were converted")
 
-        self.update_files_list()
+        self._update_ui()
 
-    def _handle_save_selected(self, _):
-        """Save changes for selected files"""
+    def _handle_save_changes(self, _):
+        """Handle save changes button click"""
         selected_files = [
             f for f in self.files_to_process.values()
             if f.selected and f.has_changes()
@@ -383,12 +506,12 @@ class HebrewMP3App:
             page=self.page,
             title="Save Changes",
             content=f"Save changes to {len(selected_files)} selected files?",
-            on_confirm=lambda: self._process_save_selected(selected_files),
+            on_confirm=lambda: self._process_save_changes(selected_files),
             confirm_text="Save",
             cancel_text="Cancel"
         )
 
-    def _process_save_selected(self, files_to_save):
+    def _process_save_changes(self, files_to_save):
         """Process saving changes to selected files"""
         self.status_bar.show_progress("Saving changes...")
         success_count = 0
@@ -400,9 +523,8 @@ class HebrewMP3App:
                     success_count += 1
                 else:
                     failed_files.append(mp3_file.get_display_path())
-            except Exception as e:
+            except Exception:
                 failed_files.append(mp3_file.get_display_path())
-                print(f"Error saving {mp3_file.path}: {str(e)}")
 
         if failed_files:
             self.status_bar.show_error(
@@ -410,66 +532,49 @@ class HebrewMP3App:
             )
         else:
             self.status_bar.show_success(f"Successfully saved {success_count} files")
+            self.has_unsaved_changes = False
 
         self.update_files_list()
-
-    def _handle_file_selection_change(self, mp3_file: MP3File):
-        """Handle individual file selection change"""
-        self._update_bulk_actions()
-        self.select_all_checkbox.value = all(
-            f.selected for f in self.files_to_process.values()
-        )
-        self._update_ui()
-
-    def _update_bulk_actions(self):
-        """Update bulk action buttons state"""
-        files_selected = any(
-            f.selected for f in self.files_to_process.values()
-        )
-        self.bulk_actions.visible = files_selected
-
-        if files_selected:
-            changes_exist = any(
-                f.selected and f.has_changes()
-                for f in self.files_to_process.values()
-            )
-            self.bulk_actions.controls[1].disabled = not changes_exist  # Save button
-
-        self._update_ui()
-
-    def convert_file_hebrew(self, mp3_file: MP3File):
-        """Convert Hebrew text in file tags"""
-        try:
-            mp3_file.convert_hebrew_tags()
-            self.update_files_list()
-            self.status_bar.show_success(f"Converted Hebrew text in {mp3_file.get_display_path()}")
-        except Exception as error:
-            self.status_bar.show_error(f"Error converting file: {str(error)}")
 
     def remove_file(self, mp3_file: MP3File):
         """Remove a file from the list"""
         if mp3_file.path in self.files_to_process:
             del self.files_to_process[mp3_file.path]
             self.update_files_list()
-            self.status_bar.show_success("File removed")
+            self.status_bar.show_success(f"Removed {mp3_file.get_display_path()}")
 
     def clear_files(self, _):
         """Clear all files"""
         if not self.files_to_process:
             return
 
-        self.files_list.controls.clear()
+        if self.has_unsaved_changes:
+            DialogBuilder.create_confirmation_dialog(
+                page=self.page,
+                title="Clear Files",
+                content="There are unsaved changes. Are you sure you want to clear all files?",
+                on_confirm=self._process_clear_files,
+                confirm_text="Clear",
+                cancel_text="Cancel",
+                danger=True
+            )
+        else:
+            self._process_clear_files()
+
+    def _process_clear_files(self):
+        """Process clearing all files"""
         self.files_to_process.clear()
+        self.files_list.controls.clear()
+        self.has_unsaved_changes = False
         self.select_all_checkbox.value = False
-        self.bulk_actions.visible = False
         self.status_bar.show_success("Cleared all files")
         self._update_ui()
 
 
 def main(page: Page):
     """Initialize and run the application"""
-    app = HebrewMP3App(page)
+    HebrewMP3App(page)
 
 
 if __name__ == '__main__':
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER)
+    ft.app(target=main)

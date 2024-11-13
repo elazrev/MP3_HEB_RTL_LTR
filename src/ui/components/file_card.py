@@ -1,11 +1,16 @@
-from .base_control import BaseControl
 import flet as ft
 from ...models.mp3_file import MP3File
 from ..styles import AppTheme
 
 
-class FileCard(BaseControl):
-    def __init__(self, mp3_file: MP3File, on_convert=None, on_remove=None, on_selection_change=None):
+class FileCard(ft.UserControl):
+    def __init__(
+            self,
+            mp3_file: MP3File,
+            on_convert=None,
+            on_remove=None,
+            on_selection_change=None
+    ):
         super().__init__()
         self.mp3_file = mp3_file
         self.on_convert = on_convert
@@ -13,45 +18,49 @@ class FileCard(BaseControl):
         self.on_selection_change = on_selection_change
 
     def build(self):
-        card = ft.Card(
+        return ft.Card(
             content=ft.Container(
                 content=ft.Row([
-                    # Checkbox
+                    # Selection checkbox
                     ft.Checkbox(
                         value=self.mp3_file.selected,
-                        on_change=self._handle_selection_change
+                        on_change=self._handle_selection_change,
+                        tooltip="Select this file"
                     ),
 
-                    # Album Art
+                    # Album art (if exists)
                     self._build_album_art(),
 
-                    # File Details
+                    # File details with changes indicator
                     ft.Column([
-                        self._build_tag_preview("Title", 'title'),
-                        self._build_tag_preview("Artist", 'artist'),
-                        self._build_tag_preview("Album", 'album')
+                        self._build_tag_row("Title", 'title'),
+                        self._build_tag_row("Artist", 'artist'),
+                        self._build_tag_row("Album", 'album')
                     ], expand=True),
 
-                    # Actions
+                    # Action buttons
                     ft.Column([
                         ft.IconButton(
                             icon=ft.icons.EDIT,
-                            tooltip="Convert Hebrew",
-                            on_click=lambda e: self.on_convert(self.mp3_file) if self.on_convert else None
+                            tooltip="Convert Hebrew text",
+                            on_click=lambda e: self.on_convert(self.mp3_file) if self.on_convert else None,
+                            icon_color=AppTheme.PRIMARY
                         ),
                         ft.IconButton(
                             icon=ft.icons.DELETE,
-                            icon_color=AppTheme.ERROR,
                             tooltip="Remove from list",
-                            on_click=lambda e: self.on_remove(self.mp3_file) if self.on_remove else None
+                            on_click=lambda e: self.on_remove(self.mp3_file) if self.on_remove else None,
+                            icon_color=AppTheme.ERROR
                         )
                     ])
                 ]),
-                padding=10
-            )
+                bgcolor=AppTheme.CARD_BACKGROUND if not self.mp3_file.has_changes()
+                else ft.colors.with_opacity(0.1, AppTheme.PRIMARY),
+                padding=10,
+                border_radius=8
+            ),
+            elevation=2
         )
-
-        return card
 
     def _build_album_art(self):
         """Build album art display"""
@@ -61,28 +70,24 @@ class FileCard(BaseControl):
                 width=50,
                 height=50,
                 fit=ft.ImageFit.COVER,
-                border_radius=ft.border_radius.all(5),
+                border_radius=8
             )
-        else:
-            return ft.Container(
-                content=ft.Icon(
-                    ft.icons.ALBUM,
-                    color=AppTheme.TEXT_SECONDARY
-                ),
-                width=50,
-                height=50,
-                bgcolor=AppTheme.CARD_BACKGROUND,
-                border_radius=5,
-                border=ft.border.all(1, AppTheme.TEXT_HINT)
-            )
+        return ft.Container(
+            content=ft.Icon(ft.icons.ALBUM, color=AppTheme.TEXT_SECONDARY),
+            width=50,
+            height=50,
+            bgcolor=AppTheme.BACKGROUND,
+            border_radius=8
+        )
 
-    def _build_tag_preview(self, label: str, tag_name: str):
-        """Build preview for a single tag"""
+    def _build_tag_row(self, label: str, tag_name: str):
+        """Build a row for tag display with change indication"""
         original = self.mp3_file.original_tags[tag_name]
-        new = self.mp3_file.tags[tag_name]
+        current = self.mp3_file.tags[tag_name]
+        has_changed = original != current
 
-        if original == new:
-            return ft.Text(f"{label}: {original}")
+        if not has_changed:
+            return ft.Text(f"{label}: {current}")
 
         return ft.Column([
             ft.Text(label, size=12, color=AppTheme.TEXT_SECONDARY),
@@ -90,11 +95,16 @@ class FileCard(BaseControl):
                 ft.Text(
                     original,
                     style=ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH),
-                    color=AppTheme.TEXT_SECONDARY
+                    color=AppTheme.TEXT_SECONDARY,
+                    size=12
                 ),
-                ft.Text(" → "),
+                ft.Icon(
+                    ft.icons.ARROW_FORWARD,
+                    color=AppTheme.SECONDARY,
+                    size=16
+                ),
                 ft.Text(
-                    new,
+                    current,
                     color=AppTheme.PRIMARY,
                     weight=ft.FontWeight.BOLD
                 )
@@ -103,6 +113,6 @@ class FileCard(BaseControl):
 
     def _handle_selection_change(self, e):
         """Handle checkbox selection change"""
-        self.mp3_file.selected = e.value
+        self.mp3_file.selected = e.control.value
         if self.on_selection_change:
             self.on_selection_change(self.mp3_file)
