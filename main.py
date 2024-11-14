@@ -143,6 +143,21 @@ class HebrewMP3App:
             border_radius=8,
             visible=False  # Initially hidden until files are loaded
         )
+        # Add Select All checkbox
+        self.select_all_checkbox = ft.Checkbox(
+            label="Select All",
+            value=False,
+            on_change=self._handle_select_all
+        )
+
+    def _handle_select_all(self, e):
+        """Handle select all checkbox"""
+        selected = e.data == "true"
+        for mp3_file in self.files_to_process.values():
+            mp3_file.selected = selected
+
+        self.update_files_list()
+        self._update_toolbar_state()
 
     def _update_action_controls(self):
         """Update action controls state"""
@@ -502,6 +517,87 @@ class HebrewMP3App:
         if converted_count > 0:
             self.status_bar.show_success(f"Converted {converted_count} files")
             self.update_files_list()
+
+    def _handle_save_selected(self, e):
+        """Handle saving selected files"""
+        selected_files = [
+            f for f in self.files_to_process.values()
+            if f.selected and f.has_changes()
+        ]
+
+        if not selected_files:
+            self.status_bar.show_error("No changes to save in selected files")
+            return
+
+        # Show confirmation dialog
+        self.page.dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"Save {len(selected_files)} Files?"),
+            content=ft.Text("This will modify the selected files. Continue?"),
+            actions=[
+                ft.TextButton("Cancel", on_click=self._close_dialog),
+                ft.TextButton(
+                    "Save",
+                    on_click=lambda e: self._process_save_selected(selected_files)
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.page.dialog.open = True
+        self.page.update()
+
+    def _process_save_selected(self, files_to_save):
+        """Process saving the selected files"""
+        if self.page.dialog:
+            self.page.dialog.open = False
+
+        self.status_bar.show_progress(f"Saving {len(files_to_save)} files...")
+
+        success_count = 0
+        failed_files = []
+
+        for mp3_file in files_to_save:
+            try:
+                if mp3_file.save_changes():
+                    success_count += 1
+                else:
+                    failed_files.append(mp3_file.get_display_path())
+            except Exception as e:
+                print(f"Error saving {mp3_file.path}: {str(e)}")
+                failed_files.append(mp3_file.get_display_path())
+
+        # Update status
+        if failed_files:
+            self.status_bar.show_error(
+                f"Saved {success_count} files. Failed to save: {', '.join(failed_files)}"
+            )
+        else:
+            self.status_bar.show_success(f"Successfully saved {success_count} files")
+
+        # Update UI
+        self.update_files_list()
+        self.page.update()
+
+    def _close_dialog(self, e):
+        """Close current dialog"""
+        if self.page.dialog:
+            self.page.dialog.open = False
+            self.page.update()
+
+    def _update_toolbar_state(self):
+        """Update toolbar buttons state"""
+        has_selected = any(f.selected for f in self.files_to_process.values())
+        has_changes = any(
+            f.selected and f.has_changes()
+            for f in self.files_to_process.values()
+        )
+
+        self.toolbar.update_save_button(has_selected and has_changes)
+
+    def _handle_selection_change(self, mp3_file: MP3File):
+        """Handle when a file's selection changes"""
+        self._update_toolbar_state()
+        self.update()
 
     def _handle_save_changes(self, _):
         """Handle save changes button click"""
