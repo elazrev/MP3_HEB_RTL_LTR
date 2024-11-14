@@ -4,13 +4,7 @@ from ..styles import AppTheme
 
 
 class FileCard(ft.UserControl):
-    def __init__(
-            self,
-            mp3_file: MP3File,
-            on_convert=None,
-            on_remove=None,
-            on_selection_change=None
-    ):
+    def __init__(self, mp3_file: MP3File, on_convert=None, on_remove=None, on_selection_change=None):
         super().__init__()
         self.mp3_file = mp3_file
         self.on_convert = on_convert
@@ -18,49 +12,45 @@ class FileCard(ft.UserControl):
         self.on_selection_change = on_selection_change
 
     def build(self):
-        return ft.Card(
+        card = ft.Card(
             content=ft.Container(
                 content=ft.Row([
-                    # Selection checkbox
+                    # Checkbox
                     ft.Checkbox(
                         value=self.mp3_file.selected,
-                        on_change=self._handle_selection_change,
-                        tooltip="Select this file"
+                        on_change=self._handle_selection_change
                     ),
 
-                    # Album art (if exists)
+                    # Album Art
                     self._build_album_art(),
 
-                    # File details with changes indicator
+                    # File Details
                     ft.Column([
-                        self._build_tag_row("Title", 'title'),
-                        self._build_tag_row("Artist", 'artist'),
-                        self._build_tag_row("Album", 'album')
+                        self._build_tag_preview("Title", 'title'),
+                        self._build_tag_preview("Artist", 'artist'),
+                        self._build_tag_preview("Album", 'album')
                     ], expand=True),
 
-                    # Action buttons
+                    # Actions
                     ft.Column([
                         ft.IconButton(
                             icon=ft.icons.EDIT,
-                            tooltip="Convert Hebrew text",
-                            on_click=lambda e: self.on_convert(self.mp3_file) if self.on_convert else None,
-                            icon_color=AppTheme.PRIMARY
+                            tooltip="Convert Hebrew",
+                            on_click=lambda e: self.on_convert(self.mp3_file) if self.on_convert else None
                         ),
                         ft.IconButton(
                             icon=ft.icons.DELETE,
+                            icon_color=AppTheme.ERROR,
                             tooltip="Remove from list",
-                            on_click=lambda e: self.on_remove(self.mp3_file) if self.on_remove else None,
-                            icon_color=AppTheme.ERROR
+                            on_click=lambda e: self.on_remove(self.mp3_file) if self.on_remove else None
                         )
                     ])
                 ]),
-                bgcolor=AppTheme.CARD_BACKGROUND if not self.mp3_file.has_changes()
-                else ft.colors.with_opacity(0.1, AppTheme.PRIMARY),
-                padding=10,
-                border_radius=8
-            ),
-            elevation=2
+                padding=10
+            )
         )
+
+        return card
 
     def _build_album_art(self):
         """Build album art display"""
@@ -70,24 +60,28 @@ class FileCard(ft.UserControl):
                 width=50,
                 height=50,
                 fit=ft.ImageFit.COVER,
-                border_radius=8
+                border_radius=ft.border_radius.all(5),
             )
-        return ft.Container(
-            content=ft.Icon(ft.icons.ALBUM, color=AppTheme.TEXT_SECONDARY),
-            width=50,
-            height=50,
-            bgcolor=AppTheme.BACKGROUND,
-            border_radius=8
-        )
+        else:
+            return ft.Container(
+                content=ft.Icon(
+                    ft.icons.ALBUM,
+                    color=AppTheme.TEXT_SECONDARY
+                ),
+                width=50,
+                height=50,
+                bgcolor=AppTheme.CARD_BACKGROUND,
+                border_radius=5,
+                border=ft.border.all(1, AppTheme.TEXT_HINT)
+            )
 
-    def _build_tag_row(self, label: str, tag_name: str):
-        """Build a row for tag display with change indication"""
+    def _build_tag_preview(self, label: str, tag_name: str):
+        """Build preview for a single tag"""
         original = self.mp3_file.original_tags[tag_name]
-        current = self.mp3_file.tags[tag_name]
-        has_changed = original != current
+        new = self.mp3_file.tags[tag_name]
 
-        if not has_changed:
-            return ft.Text(f"{label}: {current}")
+        if original == new:
+            return ft.Text(f"{label}: {original}")
 
         return ft.Column([
             ft.Text(label, size=12, color=AppTheme.TEXT_SECONDARY),
@@ -95,16 +89,11 @@ class FileCard(ft.UserControl):
                 ft.Text(
                     original,
                     style=ft.TextStyle(decoration=ft.TextDecoration.LINE_THROUGH),
-                    color=AppTheme.TEXT_SECONDARY,
-                    size=12
+                    color=AppTheme.TEXT_SECONDARY
                 ),
-                ft.Icon(
-                    ft.icons.ARROW_FORWARD,
-                    color=AppTheme.SECONDARY,
-                    size=16
-                ),
+                ft.Text(" → "),
                 ft.Text(
-                    current,
+                    new,
                     color=AppTheme.PRIMARY,
                     weight=ft.FontWeight.BOLD
                 )
@@ -113,6 +102,6 @@ class FileCard(ft.UserControl):
 
     def _handle_selection_change(self, e):
         """Handle checkbox selection change"""
-        self.mp3_file.selected = e.control.value
+        self.mp3_file.selected = e.value
         if self.on_selection_change:
             self.on_selection_change(self.mp3_file)
