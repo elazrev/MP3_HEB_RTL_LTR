@@ -504,7 +504,7 @@ class HebrewMP3App:
             self.update_files_list()
 
     def _handle_save_changes(self, _):
-        """Save changes to selected files"""
+        """Handle save changes button click"""
         selected_files = [
             f for f in self.files_to_process.values()
             if f.selected and f.has_changes()
@@ -513,6 +513,8 @@ class HebrewMP3App:
         if not selected_files:
             self.status_bar.show_error("No changes to save in selected files")
             return
+
+        print(f"Files to save: {len(selected_files)}")  # Debug print
 
         DialogBuilder.create_confirmation_dialog(
             page=self.page,
@@ -531,13 +533,14 @@ class HebrewMP3App:
 
         for mp3_file in files_to_save:
             try:
+                print(f"Processing file: {mp3_file.path}")  # Debug print
                 if mp3_file.save_changes():
                     success_count += 1
                 else:
                     failed_files.append(mp3_file.get_display_path())
             except Exception as e:
+                print(f"Error saving {mp3_file.path}: {str(e)}")  # Debug print
                 failed_files.append(mp3_file.get_display_path())
-                print(f"Error saving {mp3_file.path}: {str(e)}")
 
         if failed_files:
             self.status_bar.show_error(
