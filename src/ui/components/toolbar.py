@@ -1,50 +1,74 @@
 import flet as ft
 from ..styles import AppTheme
-
+from typing import Callable
 
 class Toolbar(ft.UserControl):
-    def __init__(self):
+    def __init__(self,
+                 on_select_files=None,
+                 on_select_directory=None,
+                 on_clear=None,
+                 on_save_selected=None,
+                 on_convert_selected=None):  # הוספת callback חדש
         super().__init__()
-        self.save_selected_btn = None
+        self.on_select_files = on_select_files
+        self.on_select_directory = on_select_directory
+        self.on_clear = on_clear
+        self.on_save_selected = on_save_selected
+        self.on_convert_selected = on_convert_selected
+        self.convert_btn = None
+        self.save_btn = None
 
     def build(self):
-        self.save_selected_btn = ft.ElevatedButton(
-            "Save Selected Files",
+        self.convert_btn = ft.ElevatedButton(
+            text="Convert Selected",
+            icon=ft.icons.TRANSLATE,
+            style=ft.ButtonStyle(
+                color={ft.MaterialState.DEFAULT: AppTheme.TEXT_PRIMARY},
+                bgcolor={ft.MaterialState.DEFAULT: AppTheme.SECONDARY}
+            ),
+            on_click=self.on_convert_selected,
+            disabled=True
+        )
+
+        self.save_btn = ft.ElevatedButton(
+            text="Save Selected",
             icon=ft.icons.SAVE,
             style=ft.ButtonStyle(
-                color={ft.ControlState.DEFAULT: AppTheme.TEXT_PRIMARY},
-                bgcolor={ft.ControlState.DEFAULT: AppTheme.PRIMARY},
-                padding=10,
-                shape=ft.RoundedRectangleBorder(radius=8)
+                color={ft.MaterialState.DEFAULT: AppTheme.TEXT_PRIMARY},
+                bgcolor={ft.MaterialState.DEFAULT: AppTheme.PRIMARY}
             ),
-            disabled=True  # Initially disabled
+            on_click=self.on_save_selected,
+            disabled=True
         )
 
         return ft.Container(
             content=ft.Row([
                 ft.ElevatedButton(
-                    "Select Files",
+                    text="Select Files",
                     icon=ft.icons.FOLDER_OPEN,
-                    style=ft.ButtonStyle(
-                        color={ft.ControlState.DEFAULT: AppTheme.TEXT_PRIMARY},
-                        bgcolor={ft.ControlState.DEFAULT: AppTheme.SECONDARY}
-                    )
+                    on_click=self.on_select_files
                 ),
-                self.save_selected_btn,
                 ft.ElevatedButton(
-                    "Clear Selection",
+                    text="Select Directory",
+                    icon=ft.icons.FOLDER,
+                    on_click=self.on_select_directory
+                ),
+                self.convert_btn,
+                self.save_btn,
+                ft.ElevatedButton(
+                    text="Clear",
                     icon=ft.icons.CLEAR_ALL,
-                    style=ft.ButtonStyle(
-                        color={ft.ControlState.DEFAULT: AppTheme.TEXT_PRIMARY},
-                        bgcolor={ft.ControlState.DEFAULT: AppTheme.ERROR}
-                    )
-                )
+                    on_click=self.on_clear
+                ),
             ], alignment=ft.MainAxisAlignment.CENTER),
             padding=10
         )
 
-    def update_save_button(self, has_selected: bool):
-        """Update save button state based on selection"""
-        if self.save_selected_btn:
-            self.save_selected_btn.disabled = not has_selected
-            self.update()
+    def update_buttons_state(self, has_selected: bool, has_changes: bool):
+        """Update buttons state based on selection and changes"""
+        if self.convert_btn:
+            self.convert_btn.disabled = not has_selected
+        if self.save_btn:
+            self.save_btn.disabled = not (has_selected and has_changes)
+        self.update()
+

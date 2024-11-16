@@ -7,132 +7,160 @@ class HebrewTextHandler:
 
     @staticmethod
     def is_hebrew(text: str) -> bool:
-        """
-        Check if text contains Hebrew characters.
-
-        Args:
-            text (str): Text to check
-
-        Returns:
-            bool: True if text contains Hebrew characters
-        """
+        """Check if text contains Hebrew characters"""
         if not text:
             return False
-        # הרחבת הטווח לכל התווים העבריים כולל ניקוד
-        hebrew_pattern = re.compile(r'[\u0590-\u05FF\uFB1D-\uFB4F]')
+        # הוספת גרש וגרשיים לטווח התווים העבריים
+        hebrew_pattern = re.compile(r'[\u0590-\u05FF\uFB1D-\uFB4F\u05F3\u05F4]')
         return bool(hebrew_pattern.search(str(text)))
 
     @staticmethod
-    def split_text_to_segments(text: str) -> List[Tuple[str, bool]]:
+    def reverse_hebrew_section(text: str) -> str:
         """
-        Split text into segments of Hebrew and non-Hebrew text.
-
-        Args:
-            text (str): Input text containing mixed Hebrew and non-Hebrew
-
-        Returns:
-            List[Tuple[str, bool]]: List of (text_segment, is_hebrew) tuples
+        Creates mirror text for a Hebrew section.
+        Preserves geresh (׳) and special characters.
         """
-        if not text:
-            return []
+        # Split into words but keep delimiters
+        pattern = r'(\s+|[-()\[\]{}])'
+        parts = re.split(pattern, text)
 
-        segments = []
-        # עדכון הטווח גם כאן
-        hebrew_pattern = re.compile(r'[\u0590-\u05FF\uFB1D-\uFB4F]+')
-
-        # Find all Hebrew segments with their positions
-        matches = list(hebrew_pattern.finditer(text))
-
-        if not matches:
-            return [(text, False)]
-
-        last_end = 0
-        for match in matches:
-            start, end = match.span()
-
-            # Add non-Hebrew segment before match if exists
-            if start > last_end:
-                segments.append((text[last_end:start], False))
-
-            # Add Hebrew segment
-            segments.append((text[start:end], True))
-            last_end = end
-
-        # Add remaining non-Hebrew segment if exists
-        if last_end < len(text):
-            segments.append((text[last_end:], False))
-
-        return segments
-
-    @staticmethod
-    def reverse_hebrew_words(text: str) -> str:
-        """
-        Reverse Hebrew text while preserving word structure and non-Hebrew text.
-
-        Args:
-            text (str): Text containing Hebrew and possibly non-Hebrew characters
-
-        Returns:
-            str: Text with Hebrew segments reversed while keeping word structure
-        """
-        if not text:
-            return text
-
-        # Split into words but preserve spaces and punctuation
-        pattern = r'([^\s\W]+|\s+|[^\w\s])'
-        parts = re.findall(pattern, text)
-
-        result = []
+        # Process each part
+        processed_parts = []
         for part in parts:
             if HebrewTextHandler.is_hebrew(part):
-                # Reverse only if it's a Hebrew word
-                result.append(part[::-1])
+                # Handle geresh specially
+                processed = ''
+                i = 0
+                while i < len(part):
+                    if part[i] in '\u05F3\u05F4':  # גרש או גרשיים
+                        # שמירת הגרש ליד האות המקורית
+                        if processed:
+                            processed = processed[:-1] + part[i] + processed[-1]
+                        else:
+                            processed = part[i]
+                    else:
+                        processed = part[i] + processed
+                    i += 1
+                processed_parts.append(processed)
             else:
-                # Keep non-Hebrew parts as is
+                processed_parts.append(part)
+
+        # Join all parts and reverse the entire result
+        return ''.join(processed_parts[::-1])
+
+    @staticmethod
+    def protect_extension(text: str) -> Tuple[str, str]:
+        """Separates file extension from text"""
+        match = re.search(r'(\.[^. ]+)$', text)
+        if match:
+            ext = match.group(1)
+            return text[:-len(ext)], ext
+        return text, ""
+
+    @staticmethod
+    def process_text(text: str) -> str:
+        """
+        Process text by splitting into Hebrew and non-Hebrew sections.
+
+        Args:
+            text (str): Input text
+
+        Returns:
+            str: Processed text with Hebrew sections mirrored
+        """
+        # Split by Hebrew/non-Hebrew sections while preserving delimiters
+        hebrew_pattern = re.compile(
+            r'([\u0590-\u05FF\uFB1D-\uFB4F]+[\u0590-\u05FF\uFB1D-\uFB4F\s()-]*[\u0590-\u05FF\uFB1D-\uFB4F]+|[\u0590-\u05FF\uFB1D-\uFB4F]+)')
+
+        parts = []
+        last_end = 0
+
+        for match in hebrew_pattern.finditer(text):
+            # Add non-Hebrew text before match
+            if match.start() > last_end:
+                parts.append((text[last_end:match.start()], False))
+
+            # Add Hebrew text
+            parts.append((match.group(), True))
+            last_end = match.end()
+
+        # Add remaining non-Hebrew text
+        if last_end < len(text):
+            parts.append((text[last_end:], False))
+
+        # Process each part
+        result = []
+        for part, is_hebrew in parts:
+            if is_hebrew:
+                result.append(HebrewTextHandler.reverse_hebrew_section(part))
+            else:
                 result.append(part)
 
         return ''.join(result)
 
     @staticmethod
-    def analyze_text(text: str) -> dict:
+    def reverse_hebrew_words(text: str) -> str:
         """
-        Analyze text for Hebrew content.
+        Create mirror text for Hebrew parts while preserving non-Hebrew text and file extensions.
 
         Args:
-            text (str): Text to analyze
+            text (str): Input text
 
         Returns:
-            dict: Analysis results including:
-                - contains_hebrew: bool
-                - hebrew_segments: int
-                - total_segments: int
-                - needs_conversion: bool
-                - original: str
-                - converted: str
+            str: Text with Hebrew sections in mirror form
         """
+        if not text:
+            return text
+
+        # Protect file extension
+        main_text, extension = HebrewTextHandler.protect_extension(text)
+
+        # Process main text
+        processed_text = HebrewTextHandler.process_text(main_text)
+
+        # Reattach extension
+        return processed_text + extension
+
+    @staticmethod
+    def analyze_text(text: str) -> dict:
+        """Analyze text for Hebrew content"""
         if not text:
             return {
                 'contains_hebrew': False,
-                'hebrew_segments': 0,
-                'total_segments': 0,
+                'hebrew_sections': 0,
+                'total_sections': 0,
                 'needs_conversion': False,
                 'original': '',
                 'converted': ''
             }
 
-        # Analyze using split_text_to_segments
-        segments = HebrewTextHandler.split_text_to_segments(text)
-        hebrew_count = sum(1 for _, is_hebrew in segments if is_hebrew)
-
-        # Only convert if Hebrew is detected
-        needs_conversion = hebrew_count > 0
-        converted = HebrewTextHandler.reverse_hebrew_words(text) if needs_conversion else text
+        main_text, extension = HebrewTextHandler.protect_extension(text)
+        has_hebrew = HebrewTextHandler.is_hebrew(main_text)
+        converted = HebrewTextHandler.reverse_hebrew_words(text) if has_hebrew else text
 
         return {
-            'contains_hebrew': hebrew_count > 0,
-            'hebrew_segments': hebrew_count,
-            'total_segments': len(segments),
-            'needs_conversion': needs_conversion,
+            'contains_hebrew': has_hebrew,
+            'needs_conversion': has_hebrew,
             'original': text,
             'converted': converted
         }
+
+"""    @staticmethod
+    def test_conversion():
+       # Test the conversion with various cases
+        test_cases = [
+            "ששון שאולוב - בואי נדבר.mp3",
+            "ששון שאולוב - בואי נדבר (AKI Remix).mp3",
+            "שיר ישראלי - test.mp3",
+            "Hebrew Song - שיר עברי.mp3",
+            "ששון - remix.mp3"
+        ]
+
+        print("Testing Hebrew text conversion:")
+        print("-" * 50)
+        for test in test_cases:
+            result = HebrewTextHandler.reverse_hebrew_words(test)
+            print(f"Original: {test}")
+            print(f"Converted: {result}")
+            print("-" * 50)
+"""
