@@ -30,9 +30,9 @@ class ContactManager:
         """Show contact information dialog"""
         dialog = ft.AlertDialog(
             modal=False,
-            title=ft.Text("Contact Information"),
+            title=ft.Text("יש לכם הצעות ייעול?", rtl=True),
             content=ft.Column([
-                ft.Text("Would you like to get in touch?"),
+                ft.Text("מוזמנים ליצור קשר :)", rtl=True),
                 ft.Container(height=10),
                 ft.Row([
                     ft.Icon(ft.icons.EMAIL, color=AppTheme.PRIMARY),
