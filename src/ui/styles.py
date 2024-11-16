@@ -3,7 +3,7 @@ import flet as ft
 
 class AppInfo:
     """Application information and constants"""
-    VERSION = "0.1.0-beta"
+    VERSION = "1.0.0 - beta"
     AUTHOR = "elaz.rev"
     TITLE = "Hebrew MP3 Tag Fixer"
     DESCRIPTION = "Fix Hebrew text in MP3 tags from RTL to LTR"

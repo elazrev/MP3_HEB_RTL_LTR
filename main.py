@@ -1,18 +1,21 @@
 import flet as ft
+from click import style
 from flet import Page
 from src.models.mp3_file import MP3File
 from src.ui.components.file_card import FileCard
 from src.ui.components.status_bar import StatusBar
 from src.ui.components.toolbar import Toolbar
-from src.ui.styles import AppTheme
+from src.ui.components.contact_dialog import ContactManager
+from src.ui.styles import AppTheme, AppInfo
 import os
 
-VERSION = "1.0.0"  # הוספת מספר גרסה
+VERSION = AppInfo.VERSION
 
 class HebrewMP3App:
     def __init__(self, page: Page):
         self.page = page
         self.files_to_process = {}
+        self.contact_manager = ContactManager(page)  # יצירת מנהל הקשר
         self.setup_page()
         self.initialize_components()
         self.build_ui()
@@ -237,20 +240,26 @@ class HebrewMP3App:
 
     def build_ui(self):
         """Build the main UI"""
-        # Header - קומפקטי יותר
+        # Header
         header = ft.Container(
             content=ft.Column([
                 ft.Text(
                     "Hebrew MP3 Tag Fixer",
-                    size=20,  # גודל קטן יותר
+                    size=20,
                     weight=ft.FontWeight.BOLD,
-                    color="#2E2E2E"  # צבע כהה יותר
+                    color="#2E2E2E"
                 ),
-                ft.Text(
-                    "by elaz.rev",
-                    size=12,
-                    italic=True,
-                    color="#666666"
+                ft.Row(
+                    [
+                        ft.Text(
+                            "by ",
+                            size=12,
+                            italic=True,
+                            color="#666666"
+                        ),
+                        self.contact_manager.create_contact_button()  # שימוש במנהל הקשר
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER
                 )
             ], spacing=2,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER),
